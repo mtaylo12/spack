@@ -35,9 +35,10 @@ class Scream(CMakePackage):
     # notify when the package is updated.
     # maintainers = ['github_user1', 'github_user2']
 
-    version(git="https://github.com/mtaylo12/scream.git", commit="fcf28ecbac2c4d5aab7c727b4834f89433b20ae2",submodules=True)
+    #version(git="https://github.com/mtaylo12/scream.git", commit="fcf28ecbac2c4d5aab7c727b4834f89433b20ae2",submodules=True)
     #version('v2.0.0-beta.3', git="https://github.com/E3SM-Project/scream.git", tag="v2.0.0-beta.3")
     #sha256='71324f8d8290e7ef1143e2443e6e7b1a1ca8bcefb9168f418102e04053007780')
+    version('scream-v1.0.0-alpha.0.1', git="https://github.com/E3SM-Project/scream.git", tag="scream-v1.0.0-alpha.0.1")
 
     # FIXME: Add dependencies if required.
     depends_on('cmake@3.23.1',type='build')
