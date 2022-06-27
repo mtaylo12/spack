@@ -27,8 +27,8 @@ class Scream(CMakePackage):
     """E3SM Scream Model"""
 
     homepage = "https://github.com/E3SM-Project/scream"
-#    url      = "https://github.com/E3SM-Project/scream/archive/refs/tags/SCREAMv2.0.0-beta.3.tar.gz"
-    url      = "https://github.com/mtaylo12/scream.git"
+    url      = "https://github.com/E3SM-Project/scream/archive/refs/tags/scream-v1.0.0-alpha.0.1.tar.gz"
+
 
 
     # FIXME: Add a list of GitHub accounts to
@@ -38,16 +38,15 @@ class Scream(CMakePackage):
     #version(git="https://github.com/mtaylo12/scream.git", commit="fcf28ecbac2c4d5aab7c727b4834f89433b20ae2",submodules=True)
     #version('v2.0.0-beta.3', git="https://github.com/E3SM-Project/scream.git", tag="v2.0.0-beta.3")
     #sha256='71324f8d8290e7ef1143e2443e6e7b1a1ca8bcefb9168f418102e04053007780')
-    version('scream-v1.0.0-alpha.0.1', git="https://github.com/E3SM-Project/scream.git", tag="scream-v1.0.0-alpha.0.1")
+    version('v1.0.0-alpha.0.1', git="https://github.com/E3SM-Project/scream.git", tag="scream-v1.0.0-alpha.0.1")
 
     # FIXME: Add dependencies if required.
     depends_on('cmake@3.23.1',type='build')
-
+    depends_on('openmpi@4.1.2')
     depends_on('python@3.8.9')
     depends_on('gettext@0.21%intel@2021.6.0 cflags="-gcc-name=/usr/tce/packages/gcc/gcc-10.2.1/bin/gcc"')
     depends_on('m4@1.4.19%intel@2021.6.0 cflags="-gcc-name=/usr/tce/packages/gcc/gcc-10.2.1/bin/gcc"')
     depends_on('tar@1.34%intel@2021.6.0  cflags="-gcc-name=/usr/tce/packages/gcc/gcc-10.2.1/bin/gcc"')
-    depends_on('mpich')
     depends_on('netcdf-fortran')
     depends_on('netcdf-c')
     depends_on('cuda')
