@@ -47,7 +47,7 @@ class Scream(CMakePackage):
     depends_on('netcdf-c%intel@19.0.4.227')
     depends_on('cuda')
     depends_on('parallel-netcdf')
-
+    depends_on('intel-mkl@2020.0.166')
     
     root_cmakelists_dir='components/scream'
     install_targets = ['baseline']
@@ -60,17 +60,25 @@ class Scream(CMakePackage):
         # FIXME: CMAKE_INSTALL_PREFIX and CMAKE_BUILD_TYPE
         # FIXME: If not needed delete this function
         args = [
-        '-D CMAKE_BUILD_TYPE=Debug',
-                '-D Kokkos_ENABLE_DEBUG=TRUE',
-                '-D Kokkos_ENABLE_AGGRESSIVE_VECTORIZATION=OFF',
-                '-D Kokkos_ENABLE_SERIAL=ON',
-                '-D Kokkos_ENABLE_OPENMP=ON',
-                '-D Kokkos_ENABLE_PROFILING=OFF',
-                '-D Kokkos_ENABLE_DEPRECATED_CODE=OFF',
-                '-D KOKKOS_ENABLE_ETI:BOOL=OFF',
-                '-D CMAKE_C_COMPILER=mpicc',
-                '-D CMAKE_CXX_COMPILER=mpicxx',
-                '-D CMAKE_Fortran_COMPILER=mpif90',
-                '-D SCREAM_INPUT_ROOT=/usr/gdata/climdat/ccsm3data/inputdata/'
+            '-D CMAKE_BUILD_TYPE=Debug',
+            '-D Kokkos_ENABLE_DEBUG=TRUE',
+            '-D Kokkos_ENABLE_AGGRESSIVE_VECTORIZATION=TRUE',
+            '-D Kokkos_ENABLE_SERIAL=ON',
+            '-D Kokkos_ENABLE_OPENMP=TRUE',
+            '-D Kokkos_ENABLE_PROFILING=OFF',
+            '-D Kokkos_ENABLE_DEPRECATED_CODE=OFF',
+            '-D KOKKOS_ENABLE_ETI:BOOL=OFF',
+            '-D CMAKE_C_COMPILER=mpicc',
+            '-D CMAKE_CXX_COMPILER=mpicxx',
+            '-D CMAKE_Fortran_COMPILER=mpif90',
+            '-D Kokkos_ARGCH_BDW=ON',
+            '-DCMAKE_CXX_FLAGS=-w -cxxlib=/usr/tce/packages/gcc/gcc-8.3.1/rh',
+            '-DCMAKE_EXE_LINKER_FLAGS=-L/usr/tce/packages/gcc/gcc-8.3.1/rh/lib/gcc/x86_64-redhat-linux/8/ -mkl',
+            '-D SCREAM_MPIRUN_EXE="mpiexec"',
+            '-D SCREAM_MPI_NP_FLAG="-n"',
+            '-D SCREAM_MPI_EXTRA_ARGS=""',
+            '-D SCREAM_INPUT_ROOT=/usr/gdata/climdat/ccsm3data/inputdata'
+            #'-C ~/scream.cmake'
+
         ]
         return args
