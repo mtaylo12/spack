@@ -45,8 +45,10 @@ class Scream(CMakePackage):
     depends_on('intel-mkl@2020.0.166')
     
     root_cmakelists_dir='components/scream'
-    install_targets = ['baseline']
 
+    build_targets = ['all','baseline', 'test']
+    install_targets = ['install', 'baseline', 'test']
+        
     conflicts('util-linux-uuid@2.36.3:', when='%intel')
     conflicts('diffutils@3.8:',when='%intel')
 
