@@ -36,17 +36,8 @@ class Scream(CMakePackage):
 
     version('1.0.0-alpha.0.1',git="https://github.com/E3SM-Project/scream.git", tag="scream-v1.0.0-alpha.0.1",submodules=True)
     #sha256='45e9293d36a7505283378f3d98206e593e963115b5c8624effda3859538b2515')                                                                                                    
-
-    # FIXME: Add dependencies if required.
-    #depends_on('intel@19.0.4')
-
-    executables = ['^test-all-scream$']
-    
     depends_on('cmake@3.23.1',type='build')
-    
     depends_on('openmpi@4.1.2%intel@19.0.4.227')
-    #depends_on('openmpi@4.1.2%intel@19.0.4')
-
     depends_on('netcdf-fortran@4.4.4')
     depends_on('netcdf-c')
     depends_on('cuda')
@@ -86,15 +77,12 @@ class Scream(CMakePackage):
         ]
         return args
 
-    @classmethod
-    def determine_version(cls, exe):
-        return "v1.0.0-alpha.0.1"
 
     @run_after('install')
     def install_scripts(self):
         mkdirp(self.prefix.bin)
-        install(self.stage.source_path + '/components/scream/scripts/*', self.prefix.bin())
+        install(self.stage.source_path + '/components/scream/scripts/test-all-scream', self.prefix.bin)
 
 
-    def setup_environment(self, spack_env, run_env):
-        run_env.prepend_path('PATH', self.prefix.bin)
+    #def setup_environment(self, spack_env, run_env):
+     #   run_env.prepend_path('PATH', self.prefix.bin)
