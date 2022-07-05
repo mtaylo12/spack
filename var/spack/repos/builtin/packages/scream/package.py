@@ -44,7 +44,7 @@ class Scream(CMakePackage):
     
     root_cmakelists_dir='components/scream'
 
-    install_targets = ['install', 'baseline']
+    install_targets = ['install', 'baseline', 'test']
     
     conflicts('util-linux-uuid@2.36.3:', when='%intel')
     conflicts('diffutils@3.8:',when='%intel')
