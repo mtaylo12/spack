@@ -24,18 +24,16 @@ from spack.package import *
 
 
 class Scream(CMakePackage):
-    """FIXME: Put a proper description of your package here."""
+    """E3SM Scream Package"""
 
-# FIXME: Add a proper url for your package's homepage here.                                                                                                                    
     homepage = "https://github.com/E3SM-Project/scream"
     url      = "https://github.com/E3SM-Project/scream/archive/refs/tags/scream-v1.0.0-alpha.0.1.tar.gz"
+    
 
-    # FIXME: Add a list of GitHub accounts to                                                                                                                                      
-    # notify when the package is updated.                                                                                                                                          
     # maintainers = ['github_user1', 'github_user2']                                                                                                                               
 
     version('1.0.0-alpha.0.1',git="https://github.com/E3SM-Project/scream.git", tag="scream-v1.0.0-alpha.0.1",submodules=True)
-    #sha256='45e9293d36a7505283378f3d98206e593e963115b5c8624effda3859538b2515')                                                                                                    
+
     depends_on('cmake@3.23.1',type='build')
     depends_on('openmpi@4.1.2%intel@19.0.4.227')
     depends_on('netcdf-fortran@4.4.4')
@@ -46,16 +44,12 @@ class Scream(CMakePackage):
     
     root_cmakelists_dir='components/scream'
 
-    build_targets = ['all','baseline', 'test']
-    install_targets = ['install', 'baseline', 'test']
-        
+    install_targets = ['install', 'baseline']
+    
     conflicts('util-linux-uuid@2.36.3:', when='%intel')
     conflicts('diffutils@3.8:',when='%intel')
 
     def cmake_args(self):
-        # FIXME: Add arguments other than
-        # FIXME: CMAKE_INSTALL_PREFIX and CMAKE_BUILD_TYPE
-        # FIXME: If not needed delete this function
         args = [
             '-D CMAKE_BUILD_TYPE=Debug',
             '-D Kokkos_ENABLE_DEBUG=TRUE',
@@ -71,20 +65,17 @@ class Scream(CMakePackage):
             '-D Kokkos_ARGCH_BDW=ON',
             '-DCMAKE_CXX_FLAGS=-w -cxxlib=/usr/tce/packages/gcc/gcc-8.3.1/rh',
             '-DCMAKE_EXE_LINKER_FLAGS=-L/usr/tce/packages/gcc/gcc-8.3.1/rh/lib/gcc/x86_64-redhat-linux/8/ -mkl',
-            '-D SCREAM_MPIRUN_EXE="mpiexec"',
-            '-D SCREAM_MPI_NP_FLAG="-n"',
-            '-D SCREAM_MPI_EXTRA_ARGS=""',
+            '-D SCREAM_MPIRUN_EXE=mpiexec',
+            '-D SCREAM_MPI_NP_FLAG=-n',
             '-D SCREAM_INPUT_ROOT=/usr/gdata/climdat/ccsm3data/inputdata'
-
         ]
         return args
 
+    # def install_scripts(self):
+    #     mkdirp(self.prefix.bin)
+    #     with working_dir(self.scripts_directory):
+    #         install('test-all-scream', self.prefix.bin)
+    #         install('scripts-tests', self.prefix.bin)
 
-    @run_after('install')
-    def install_scripts(self):
-        mkdirp(self.prefix.bin)
-        install(self.stage.source_path + '/components/scream/scripts/test-all-scream', self.prefix.bin)
+        
 
-
-    #def setup_environment(self, spack_env, run_env):
-     #   run_env.prepend_path('PATH', self.prefix.bin)
