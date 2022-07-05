@@ -27,12 +27,14 @@ class Scream(CMakePackage):
     """E3SM Scream Package"""
 
     homepage = "https://github.com/E3SM-Project/scream"
-    url      = "https://github.com/E3SM-Project/scream/archive/refs/tags/scream-v1.0.0-alpha.0.1.tar.gz"
+
+    url      = "https://github.com/E3SM-Project/scream"
     
 
     # maintainers = ['github_user1', 'github_user2']                                                                                                                               
 
-    version('1.0.0-alpha.0.1',git="https://github.com/E3SM-Project/scream.git", tag="scream-v1.0.0-alpha.0.1",submodules=True)
+#    version('1.0.0-alpha.0.1',git="https://github.com/E3SM-Project/scream.git", tag="scream-v1.0.0-alpha.0.1",submodules=True)
+    version('master',git="https://github.com/E3SM-Project/scream.git", branch='master',submodules=True)
 
     depends_on('cmake@3.23.1',type='build')
     depends_on('openmpi@4.1.2%intel@19.0.4.227')
