@@ -25,9 +25,9 @@ from spack.package import *
 
 class Scream(CMakePackage):
     """E3SM Scream Package"""
+    #successful build on quartz and cztb2 with scream%intel@19.0.4.227
 
     homepage = "https://github.com/E3SM-Project/scream"
-
     url      = "https://github.com/E3SM-Project/scream"
     
 
@@ -37,12 +37,12 @@ class Scream(CMakePackage):
     version('master',git="https://github.com/E3SM-Project/scream.git", branch='master',submodules=True)
 
     depends_on('cmake@3.23.1',type='build')
-    depends_on('openmpi@4.1.2%intel@19.0.4.227')
+    depends_on('openmpi@4.1.2')
     depends_on('netcdf-fortran@4.4.4')
     depends_on('netcdf-c')
     depends_on('cuda')
     depends_on('parallel-netcdf')
-    depends_on('intel-mkl@2020.0.166')
+    depends_on('intel-mkl@2020.0.166', when='%intel@19.0.4.227')
     
     root_cmakelists_dir='components/scream'
 
