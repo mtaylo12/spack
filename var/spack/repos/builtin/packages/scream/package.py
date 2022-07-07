@@ -42,14 +42,16 @@ class Scream(CMakePackage):
     depends_on('netcdf-c')
     depends_on('cuda')
     depends_on('parallel-netcdf')
-    depends_on('intel-mkl@2020.0.166', when='%intel@19.0.4.227')
+    depends_on('intel-mkl@2020.0.166', when='%intel')
     
     root_cmakelists_dir='components/scream'
-
     install_targets = ['install', 'baseline', 'test']
     
     conflicts('util-linux-uuid@2.36.3:', when='%intel')
     conflicts('diffutils@3.8:',when='%intel')
+
+    variant('gcc-build',default=True,when='%gcc')
+    variant('intel-build',default=True,when='%intel')
 
     def cmake_args(self):
         args = [
@@ -65,8 +67,11 @@ class Scream(CMakePackage):
             '-D CMAKE_CXX_COMPILER=mpicxx',
             '-D CMAKE_Fortran_COMPILER=mpif90',
             '-D Kokkos_ARGCH_BDW=ON',
-            '-DCMAKE_CXX_FLAGS=-w -cxxlib=/usr/tce/packages/gcc/gcc-8.3.1/rh',
-            '-DCMAKE_EXE_LINKER_FLAGS=-L/usr/tce/packages/gcc/gcc-8.3.1/rh/lib/gcc/x86_64-redhat-linux/8/ -mkl',
+            self.define_from_variant('-DCMAKE_CXX_FLAGS=-w -cxxlib=/usr/tce/packages/gcc/gcc-8.3.1/rh','intel-build'),
+            self.define_from_variant('-DCMAKE_CXX_FLAGS=-w','gcc-build'),
+            self.define_from_variant('-DCMAKE_EXE_LINKER_FLAGS=-L/usr/tce/packages/gcc/gcc-8.3.1/rh/lib/gcc/x86_64-redhat-linux/8/ -mkl','intel-build'),
+            self.define_from_variant('-DCMAKE_EXE_LINKER_FLAGS=-L/usr/tce/packages/gcc/gcc-8.3.1/rh/lib/gcc/x86_64-redhat-linux/8/', 'gcc-build'),
+            #self.define_from_variant('-DCMAKE_Fortran_FLAGS=-fallow-argument-mismatch','gcc-build'),
             '-D SCREAM_MPIRUN_EXE=mpiexec',
             '-D SCREAM_MPI_NP_FLAG=-n',
             '-D SCREAM_INPUT_ROOT=/usr/gdata/climdat/ccsm3data/inputdata'
