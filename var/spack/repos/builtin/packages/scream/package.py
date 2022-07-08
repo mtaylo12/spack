@@ -20,20 +20,21 @@
 # See the Spack documentation for more information on packaging.
 # ----------------------------------------------------------------------------
 
+# The SCREAM build and unit tests (make test) have been tested on Lassen and Quartz with gcc-8.3.1
+# Additionally, working build on Quartz with intel@19.0.4.227
+# No other builds have been tested at this commit time.
+
 from spack.package import *
 
 
 class Scream(CMakePackage):
-    """E3SM Scream Package"""
-    #successful build on quartz and cztb2 with scream%intel@19.0.4.227
-
+    """E3SM Scream Package for building and running Scream's unit tests"""
+    
     homepage = "https://github.com/E3SM-Project/scream"
     url      = "https://github.com/E3SM-Project/scream"
     
+    maintainers = ['mtaylo12']                                                                                                                               
 
-    # maintainers = ['github_user1', 'github_user2']                                                                                                                               
-
-#    version('1.0.0-alpha.0.1',git="https://github.com/E3SM-Project/scream.git", tag="scream-v1.0.0-alpha.0.1",submodules=True)
     version('master',git="https://github.com/E3SM-Project/scream.git", branch='master',submodules=True)
 
     depends_on('cmake@3.23.1',type='build')
@@ -43,46 +44,40 @@ class Scream(CMakePackage):
     depends_on('cuda')
     depends_on('parallel-netcdf')
     depends_on('intel-mkl@2020.0.166', when='%intel')
-    
-    root_cmakelists_dir='components/scream'
-    install_targets = ['install', 'baseline', 'test']
-    
+
     conflicts('util-linux-uuid@2.36.3:', when='%intel')
     conflicts('diffutils@3.8:',when='%intel')
+    conficts('gcc@:5.3.0') #Kokkos requres 5.3.0 or higher
 
-    variant('gcc-build',default=True,when='%gcc')
-    variant('intel-build',default=True,when='%intel')
+    root_cmakelists_dir='components/scream'
+    install_targets = ['install', 'baseline', 'test']
 
     def cmake_args(self):
-        args = [
-            '-D CMAKE_BUILD_TYPE=Debug',
-            '-D Kokkos_ENABLE_DEBUG=TRUE',
-            '-D Kokkos_ENABLE_AGGRESSIVE_VECTORIZATION=TRUE',
-            '-D Kokkos_ENABLE_SERIAL=ON',
-            '-D Kokkos_ENABLE_OPENMP=TRUE',
-            '-D Kokkos_ENABLE_PROFILING=OFF',
-            '-D Kokkos_ENABLE_DEPRECATED_CODE=OFF',
-            '-D KOKKOS_ENABLE_ETI:BOOL=OFF',
-            '-D CMAKE_C_COMPILER=mpicc',
-            '-D CMAKE_CXX_COMPILER=mpicxx',
-            '-D CMAKE_Fortran_COMPILER=mpif90',
-            '-D Kokkos_ARGCH_BDW=ON',
-            self.define_from_variant('-DCMAKE_CXX_FLAGS=-w -cxxlib=/usr/tce/packages/gcc/gcc-8.3.1/rh','intel-build'),
-            self.define_from_variant('-DCMAKE_CXX_FLAGS=-w','gcc-build'),
-            self.define_from_variant('-DCMAKE_EXE_LINKER_FLAGS=-L/usr/tce/packages/gcc/gcc-8.3.1/rh/lib/gcc/x86_64-redhat-linux/8/ -mkl','intel-build'),
-            self.define_from_variant('-DCMAKE_EXE_LINKER_FLAGS=-L/usr/tce/packages/gcc/gcc-8.3.1/rh/lib/gcc/x86_64-redhat-linux/8/', 'gcc-build'),
-            #self.define_from_variant('-DCMAKE_Fortran_FLAGS=-fallow-argument-mismatch','gcc-build'),
-            '-D SCREAM_MPIRUN_EXE=mpiexec',
-            '-D SCREAM_MPI_NP_FLAG=-n',
-            '-D SCREAM_INPUT_ROOT=/usr/gdata/climdat/ccsm3data/inputdata'
-        ]
-        return args
-
-    # def install_scripts(self):
-    #     mkdirp(self.prefix.bin)
-    #     with working_dir(self.scripts_directory):
-    #         install('test-all-scream', self.prefix.bin)
-    #         install('scripts-tests', self.prefix.bin)
-
+        args = ['-D CMAKE_BUILD_TYPE=Debug',
+                '-D Kokkos_ENABLE_DEBUG=TRUE',
+                '-D Kokkos_ENABLE_AGGRESSIVE_VECTORIZATION=TRUE',
+                '-D Kokkos_ENABLE_SERIAL=ON',
+                '-D Kokkos_ENABLE_OPENMP=TRUE',
+                '-D Kokkos_ENABLE_PROFILING=OFF',
+                '-D Kokkos_ENABLE_DEPRECATED_CODE=OFF',
+                '-D KOKKOS_ENABLE_ETI:BOOL=OFF',
+                '-D CMAKE_C_COMPILER=mpicc',
+                '-D CMAKE_CXX_COMPILER=mpicxx',
+                '-D CMAKE_Fortran_COMPILER=mpif90',
+                '-D Kokkos_ARGCH_BDW=ON',
+                '-D SCREAM_MPIRUN_EXE=mpiexec',
+                '-D SCREAM_MPI_NP_FLAG=-n',
+                '-D SCREAM_INPUT_ROOT=/usr/gdata/climdat/ccsm3data/inputdata']
         
+        if self.spec.satisfies('%gcc'):
+            args += ['-DCMAKE_EXE_LINKER_FLAGS=-L/usr/tce/packages/gcc/gcc-8.3.1/rh/lib/gcc/x86_64-redhat-linux/8/']
+            if self.spec.satisfies('%gcc@10:'):
+                args += ['-DCMAKE_Fortran_FLAGS=-fallow-argument-mismatch']
+                
+        elif self.spec.satisfies('%intel'):
+            args += ['-DCMAKE_CXX_FLAGS=-w -cxxlib=/usr/tce/packages/gcc/gcc-8.3.1/rh',
+                     '-DCMAKE_EXE_LINKER_FLAGS=-L/usr/tce/packages/gcc/gcc-8.3.1/rh/lib/gcc/x86_64-redhat-linux/8/ -mkl']
 
+            
+        return args
+    
