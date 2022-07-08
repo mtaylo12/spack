@@ -47,7 +47,7 @@ class Scream(CMakePackage):
 
     conflicts('util-linux-uuid@2.36.3:', when='%intel')
     conflicts('diffutils@3.8:',when='%intel')
-    conficts('gcc@:5.3.0') #Kokkos requres 5.3.0 or higher
+    conflicts('gcc@:5.3.0') #Kokkos requres 5.3.0 or higher
 
     root_cmakelists_dir='components/scream'
     install_targets = ['install', 'baseline', 'test']
@@ -70,7 +70,8 @@ class Scream(CMakePackage):
                 '-D SCREAM_INPUT_ROOT=/usr/gdata/climdat/ccsm3data/inputdata']
         
         if self.spec.satisfies('%gcc'):
-            args += ['-DCMAKE_EXE_LINKER_FLAGS=-L/usr/tce/packages/gcc/gcc-8.3.1/rh/lib/gcc/x86_64-redhat-linux/8/']
+            args += ['-DCMAKE_EXE_LINKER_FLAGS=-L/usr/tce/packages/gcc/gcc-8.3.1/rh/lib/gcc/x86_64-redhat-linux/8/',
+                     '-DCMAKE_CXX_FLAGS=-w']
             if self.spec.satisfies('%gcc@10:'):
                 args += ['-DCMAKE_Fortran_FLAGS=-fallow-argument-mismatch']
                 
