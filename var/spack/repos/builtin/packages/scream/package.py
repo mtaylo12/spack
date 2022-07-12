@@ -69,12 +69,15 @@ class Scream(CMakePackage):
                 '-D SCREAM_MPI_NP_FLAG=-n',
                 '-D SCREAM_INPUT_ROOT=/usr/gdata/climdat/ccsm3data/inputdata']
         
-        if self.spec.satisfies('%gcc'):
+        if self.spec.satisfies('%gcc@8.3.1'):
             args += ['-DCMAKE_EXE_LINKER_FLAGS=-L/usr/tce/packages/gcc/gcc-8.3.1/rh/lib/gcc/x86_64-redhat-linux/8/',
                      '-DCMAKE_CXX_FLAGS=-w']
-            if self.spec.satisfies('%gcc@10:'):
-                args += ['-DCMAKE_Fortran_FLAGS=-fallow-argument-mismatch']
-                
+
+        if self.spec.satisfies('%gcc@10.2.1'):
+            args += ['-DCMAKE_Fortran_FLAGS=-fallow-argument-mismatch',
+                     '-DCMAKE_EXE_LINKER_FLAGS=-L/usr/tce/packages/gcc/gcc-10.2.1/rh/lib/gcc/x86_64-redhat-linux/10/',
+                     '-DCMAKE_CXX_FLAGS=-w']
+            
         elif self.spec.satisfies('%intel'):
             args += ['-DCMAKE_CXX_FLAGS=-w -cxxlib=/usr/tce/packages/gcc/gcc-8.3.1/rh',
                      '-DCMAKE_EXE_LINKER_FLAGS=-L/usr/tce/packages/gcc/gcc-8.3.1/rh/lib/gcc/x86_64-redhat-linux/8/ -mkl']
