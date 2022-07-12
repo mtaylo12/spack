@@ -21,7 +21,8 @@
 # ----------------------------------------------------------------------------
 
 # The SCREAM build and unit tests (make test) have been tested on Lassen and Quartz with gcc-8.3.1
-# Additionally, working build on Quartz with intel@19.0.4.227
+# Additionally tested on Quartz with intel@19.0.4.227 and gcc@10.2.1
+# To run under one such compiler, use the command "spack install [-v] scream%gcc@10.2.1"
 # No other builds have been tested at this commit time.
 
 from spack.package import *
