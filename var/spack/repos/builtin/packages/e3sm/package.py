@@ -43,7 +43,6 @@ class E3sm(Package):
     depends_on('py-pyyaml')
     depends_on('py-pylint')
     depends_on('py-psutil')
-    depends_on('perl-xml-libxml')
 
     def install(self, spec, prefix):
         return 0
