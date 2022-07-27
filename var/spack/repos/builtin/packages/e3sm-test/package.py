@@ -40,13 +40,14 @@ class E3smTest(Package):
     
     # FIXME: Add dependencies if required.
     # depends_on('foo')
-    depends_on('cmake@3.23.1',type='build')
-    depends_on('mvapich2@2.3',type=("build", "link", "run"))
+    depends_on('cmake@3.18.0',type='build')
+    depends_on('mvapich2@2.3',type=("build", "link"))
     depends_on('netcdf-fortran@4.4.4',type=("build", "link", "run"))
-    depends_on('netcdf-c',type=("build", "link", "run"))
+    depends_on('netcdf-c@4.4.1',type=("build", "link", "run"))
     depends_on('cuda')
     depends_on('parallel-netcdf@1.10.0',type=("build", "link", "run"))
-#    depends_on('intel-mkl@2020.0.166', when='%intel')
+    depends_on('python', type=("build", "link", "run"))
+    #    depends_on('intel-mkl@2020.0.166', when='%intel')
     depends_on('py-pyyaml')
     depends_on('py-pylint')
     depends_on('py-psutil')
@@ -54,7 +55,7 @@ class E3smTest(Package):
     depends_on('util-linux-uuid@:2.36.2',when='%intel')
 
     conflicts('diffutils@3.8:',when='%intel')
-
+    conflicts('netcdf-c@4.5:')
     def install(self, spec, prefix):
         # FIXME: Unknown build system
         return 0
