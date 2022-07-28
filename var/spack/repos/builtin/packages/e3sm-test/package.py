@@ -24,16 +24,22 @@ from spack.package import *
 
 
 class E3smTest(Package):
-    """FIXME: Put a proper description of your package here."""
+    """This package is in development - meant to install E3SM with necessary dependencies. Tested with test-all-scream and create_test"""
 
-    # FIXME: Add a proper url for your package's homepage here.
+    # INSTRUCTIONS (quartz)
+    # set the directory that you want spack to stage the code in by 'export tmpdir=...'
+    # make sure both the code base and the spack repo are in directories shared across nodes. otherwise batch job will fail
+    # run 'spack install --keep-stage e3sm-test%intel@19.0.4.227'
+    # everything should be loaded correctly, but 'spack load' any python packages needed if you get module missing errors
+    
+    
     homepage = "https://e3sm.org/"
     url      = "https://github.com/E3SM-Project/scream"
 
     # FIXME: Add a list of GitHub accounts to
     # notify when the package is updated.
     # maintainers = ['github_user1', 'github_user2']
-    maintainers = ['Jessicat-H']
+    maintainers = ['Jessicat-H','mtaylo12']
     # FIXME: Add proper versions here.
     # version('1.2.4')
     version('master',git="https://github.com/E3SM-Project/scream.git", branch='master',submodules=True)
@@ -48,10 +54,10 @@ class E3smTest(Package):
     depends_on('parallel-netcdf@1.10.0',type=("build", "link", "run"))
     depends_on('python', type=("build", "link", "run"))
     #    depends_on('intel-mkl@2020.0.166', when='%intel')
-    depends_on('py-pyyaml')
+    depends_on('py-pyyaml',type=("build", "link", "run"))
     depends_on('py-pylint')
     depends_on('py-psutil')
-    depends_on('perl-xml-libxml') #,type=("build", "link", "run")) add this next time
+    depends_on('perl-xml-libxml',type=("build", "link", "run")) 
     depends_on('util-linux-uuid@:2.36.2',when='%intel')
 
     conflicts('diffutils@3.8:',when='%intel')
