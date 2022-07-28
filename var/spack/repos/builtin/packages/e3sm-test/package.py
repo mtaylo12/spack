@@ -51,7 +51,7 @@ class E3smTest(Package):
     depends_on('py-pyyaml')
     depends_on('py-pylint')
     depends_on('py-psutil')
-    depends_on('perl-xml-libxml')
+    depends_on('perl-xml-libxml') #,type=("build", "link", "run")) add this next time
     depends_on('util-linux-uuid@:2.36.2',when='%intel')
 
     conflicts('diffutils@3.8:',when='%intel')
