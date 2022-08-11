@@ -47,7 +47,7 @@ class E3smTest(Package):
 
     # FIXME: Add dependencies if required.
     # depends_on('foo')
-    depends_on('cmake@3.18.0',type=("build", "link", "run"))
+    depends_on('cmake@3.18.0',type=("build", "link", "run")) #have had to load running test-all-scream 
     depends_on('mvapich2@2.3',type=("build", "link"))
     depends_on('netcdf-fortran@4.4.4',type=("build", "link", "run"))
     depends_on('netcdf-c@4.4.1',type=("build", "link", "run"))
@@ -58,7 +58,7 @@ class E3smTest(Package):
     depends_on('py-pyyaml',type=("build", "link", "run"))
     depends_on('py-pylint')
     depends_on('py-psutil')
-    depends_on('perl-xml-libxml',type=("build", "link", "run")) 
+    depends_on('perl-xml-libxml',type=("build", "link", "run")) #have had to load running test-all-scream
     depends_on('util-linux-uuid@:2.36.2',when='%intel')
 
     conflicts('diffutils@3.8:',when='%intel')
