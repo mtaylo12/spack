@@ -76,6 +76,11 @@ version_declared(Package, Version, Weight) :- version_declared(Package, Version,
 % versions are declared w/priority -- declared with priority implies declared
 version_declared(Package, Version) :- version_declared(Package, Version, _).
 
+% a spec with a git hash version is equivalent to one with the same matched version
+version_satisfies(Package, Constraint, HashVersion) :- version_satisfies(Package, Constraint, EquivalentVersion),
+  version_equivalent(Package, HashVersion, EquivalentVersion).
+#defined version_equivalent/3.
+
 % If something is a package, it has only one version and that must be a
 % declared version.
 % We allow clingo to choose any version(s), and infer an error if there
@@ -107,10 +112,28 @@ possible_version_weight(Package, Weight)
  :- version(Package, Version),
     version_declared(Package, Version, Weight).
 
-version_weight(Package, Weight)
+% we can't use the weight for an external version if we don't use the
+% corresponding external spec.
+:- version(Package, Version),
+   version_weight(Package, Weight),
+   version_declared(Package, Version, Weight, "external"),
+   not external(Package).
+
+% we can't use a weight from an installed spec if we are building it
+% and vice-versa
+:- version(Package, Version),
+   version_weight(Package, Weight),
+   version_declared(Package, Version, Weight, "installed"),
+   build(Package).
+
+:- version(Package, Version),
+   version_weight(Package, Weight),
+   not version_declared(Package, Version, Weight, "installed"),
+   not build(Package).
+
+1 { version_weight(Package, Weight) : version_declared(Package, Version, Weight) } 1
   :- version(Package, Version),
-     node(Package),
-     Weight = #min{W : version_declared(Package, Version, W)}.
+     node(Package).
 
 % node_version_satisfies implies that exactly one of the satisfying versions
 % is the package's version, and vice versa.
@@ -119,6 +142,11 @@ version_weight(Package, Weight)
 % able to choose versions
 { version(Package, Version) : version_satisfies(Package, Constraint, Version) }
   :- node_version_satisfies(Package, Constraint).
+
+% If there is at least a version that satisfy the constraint, impose a lower
+% bound on the choice rule to avoid false positives with the error below
+1 { version(Package, Version) : version_satisfies(Package, Constraint, Version) }
+  :- node_version_satisfies(Package, Constraint), version_satisfies(Package, Constraint, _).
 
 % More specific error message if the version cannot satisfy some constraint
 % Otherwise covered by `no_version_error` and `versions_conflict_error`.
@@ -473,6 +501,49 @@ error(2, "Attempted to use external for '{0}' which does not satisfy any configu
 #defined external_spec_condition/5.
 
 %-----------------------------------------------------------------------------
+% Config required semantics
+%-----------------------------------------------------------------------------
+
+requirement_group_satisfied(Package, X) :-
+  1 { condition_holds(Y) : requirement_group_member(Y, Package, X) } 1,
+  node(Package),
+  requirement_policy(Package, X, "one_of"),
+  requirement_group(Package, X).
+
+requirement_weight(Package, W) :-
+  condition_holds(Y),
+  requirement_has_weight(Y, W),
+  requirement_group_member(Y, Package, X),
+  requirement_policy(Package, X, "one_of"),
+  requirement_group_satisfied(Package, X).
+
+requirement_group_satisfied(Package, X) :-
+  1 { condition_holds(Y) : requirement_group_member(Y, Package, X) } ,
+  node(Package),
+  requirement_policy(Package, X, "any_of"),
+  requirement_group(Package, X).
+
+requirement_weight(Package, W) :-
+  W = #min {
+    Z : requirement_has_weight(Y, Z), condition_holds(Y), requirement_group_member(Y, Package, X);
+    % We need this to avoid an annoying warning during the solve
+    %   concretize.lp:1151:5-11: info: tuple ignored:
+    %   #sup@73
+    10000
+  },
+  requirement_policy(Package, X, "any_of"),
+  requirement_group_satisfied(Package, X).
+
+error(2, "Cannot satisfy requirement group for package '{0}'", Package) :-
+  node(Package),
+  requirement_group(Package, X),
+  not requirement_group_satisfied(Package, X).
+
+#defined requirement_group/2.
+#defined requirement_group_member/3.
+#defined requirement_has_weight/2.
+
+%-----------------------------------------------------------------------------
 % Variant semantics
 %-----------------------------------------------------------------------------
 % a variant is a variant of a package if it is a variant under some condition
@@ -481,13 +552,13 @@ variant(Package, Variant) :- variant_condition(ID, Package, Variant),
                              condition_holds(ID).
 
 % a variant cannot be set if it is not a variant on the package
-error(2, "Cannot set variant '{0}' for package '{1}' because the variant condition cannot be satisfied for the given spec", Package, Variant)
+error(2, "Cannot set variant '{0}' for package '{1}' because the variant condition cannot be satisfied for the given spec", Variant, Package)
   :- variant_set(Package, Variant),
      not variant(Package, Variant),
      build(Package).
 
 % a variant cannot take on a value if it is not a variant of the package
-error(2, "Cannot set variant '{0}' for package '{1}' because the variant condition cannot be satisfied for the given spec", Package, Variant)
+error(2, "Cannot set variant '{0}' for package '{1}' because the variant condition cannot be satisfied for the given spec", Variant, Package)
   :- variant_value(Package, Variant, _),
      not variant(Package, Variant),
      build(Package).
@@ -714,9 +785,14 @@ node_os_mismatch(Package, Dependency) :-
 % every OS is compatible with itself. We can use `os_compatible` to declare
 os_compatible(OS, OS) :- os(OS).
 
-% OS compatibility rules for reusing solves.
-% catalina binaries can be used on bigsur. Direction is package -> dependency.
-os_compatible("bigsur", "catalina").
+% Transitive compatibility among operating systems
+os_compatible(OS1, OS3) :- os_compatible(OS1, OS2), os_compatible(OS2, OS3).
+
+% We can select only operating systems compatible with the ones
+% for which we can build software. We need a cardinality constraint
+% since we might have more than one "buildable_os(OS)" fact.
+:- not 1 { os_compatible(CurrentOS, ReusedOS) : buildable_os(CurrentOS) },
+   node_os(Package, ReusedOS).
 
 % If an OS is set explicitly respect the value
 node_os(Package, OS) :- node_os_set(Package, OS), node(Package).
@@ -779,27 +855,6 @@ target_compatible(Descendent, Ancestor)
 #defined target_satisfies/2.
 #defined target_parent/2.
 
-% If the package does not have any specific weight for this
-% target, offset the default weights by the number of specific
-% weights and use that. We additionally offset by 30 to ensure
-% preferences are propagated even against large numbers of
-% otherwise "better" matches.
-target_weight(Target, Package, Weight)
-  :- default_target_weight(Target, Package, Weight),
-     node(Package),
-     not derive_target_from_parent(_, Package),
-     not package_target_weight(Target, Package, _).
-
-% TODO: Need to account for the case of more than one parent
-% TODO: each of which sets different targets
-target_weight(Target, Dependency, Weight)
-  :- depends_on(Package, Dependency),
-     derive_target_from_parent(Package, Dependency),
-     target_weight(Target, Package, Weight).
-
-target_weight(Target, Package, Weight)
-  :- package_target_weight(Target, Package, Weight).
-
 % can't use targets on node if the compiler for the node doesn't support them
 error(2, "{0} compiler '{2}@{3}' incompatible with 'target={1}'", Package, Target, Compiler, Version)
   :- node_target(Package, Target),
@@ -816,11 +871,7 @@ node_target(Package, Target)
 node_target_weight(Package, Weight)
  :- node(Package),
     node_target(Package, Target),
-    target_weight(Target, Package, Weight).
-
-derive_target_from_parent(Parent, Package)
-  :- depends_on(Parent, Package),
-     not package_target_weight(_, Package, _).
+    target_weight(Package, Target, Weight).
 
 % compatibility rules for targets among nodes
 node_target_match(Parent, Dependency)
@@ -890,8 +941,7 @@ error(2, "No valid version for '{0}' compiler '{1}' satisfies '@{2}'", Package, 
 % the compiler associated with the node satisfy the same constraint
 node_compiler_version_satisfies(Package, Compiler, Constraint)
   :- node_compiler_version(Package, Compiler, Version),
-     compiler_version_satisfies(Compiler, Constraint, Version),
-     build(Package).
+     compiler_version_satisfies(Compiler, Constraint, Version).
 
 #defined compiler_version_satisfies/3.
 
@@ -937,6 +987,9 @@ compiler_weight(Package, 100)
  :- node_compiler_version(Package, Compiler, Version),
     not node_compiler_preference(Package, Compiler, Version, _),
     not default_compiler_preference(Compiler, Version, _).
+
+% For the time being, be strict and reuse only if the compiler match one we have on the system
+:- node_compiler_version(Package, Compiler, Version), not compiler_version(Compiler, Version).
 
 #defined node_compiler_preference/4.
 #defined default_compiler_preference/3.
@@ -1081,12 +1134,24 @@ opt_criterion(100, "number of packages to build (vs. reuse)").
 #minimize { 1@100,Package : build(Package), optimize_for_reuse() }.
 #defined optimize_for_reuse/0.
 
+% A condition group specifies one or more specs that must be satisfied.
+% Specs declared first are preferred, so we assign increasing weights and
+% minimize the weights.
+opt_criterion(75, "requirement weight").
+#minimize{ 0@275: #true }.
+#minimize{ 0@75: #true }.
+#minimize {
+    Weight@75+Priority
+    : requirement_weight(Package, Weight),
+      build_priority(Package, Priority)
+}.
+
 % Minimize the number of deprecated versions being used
-opt_criterion(15, "deprecated versions used").
-#minimize{ 0@215: #true }.
-#minimize{ 0@15: #true }.
+opt_criterion(73, "deprecated versions used").
+#minimize{ 0@273: #true }.
+#minimize{ 0@73: #true }.
 #minimize{
-    1@15+Priority,Package
+    1@73+Priority,Package
     : deprecated(Package, _),
       build_priority(Package, Priority)
 }.
@@ -1095,51 +1160,51 @@ opt_criterion(15, "deprecated versions used").
 % 1. Version weight
 % 2. Number of variants with a non default value, if not set
 % for the root(Package)
-opt_criterion(14, "version weight").
-#minimize{ 0@214: #true }.
-#minimize{ 0@14: #true }.
+opt_criterion(70, "version weight").
+#minimize{ 0@270: #true }.
+#minimize{ 0@70: #true }.
 #minimize {
-    Weight@14+Priority
+    Weight@70+Priority
     : root(Package),version_weight(Package, Weight),
       build_priority(Package, Priority)
 }.
 
-opt_criterion(13, "number of non-default variants (roots)").
-#minimize{ 0@213: #true }.
-#minimize{ 0@13: #true }.
+opt_criterion(65, "number of non-default variants (roots)").
+#minimize{ 0@265: #true }.
+#minimize{ 0@65: #true }.
 #minimize {
-    1@13+Priority,Package,Variant,Value
+    1@65+Priority,Package,Variant,Value
     : variant_not_default(Package, Variant, Value),
       root(Package),
       build_priority(Package, Priority)
 }.
 
-opt_criterion(12, "preferred providers for roots").
-#minimize{ 0@212 : #true }.
-#minimize{ 0@12: #true }.
+opt_criterion(60, "preferred providers for roots").
+#minimize{ 0@260: #true }.
+#minimize{ 0@60: #true }.
 #minimize{
-    Weight@12+Priority,Provider,Virtual
+    Weight@60+Priority,Provider,Virtual
     : provider_weight(Provider, Virtual, Weight),
       root(Provider),
       build_priority(Provider, Priority)
 }.
 
-opt_criterion(11, "default values of variants not being used (roots)").
-#minimize{ 0@211: #true }.
-#minimize{ 0@11: #true }.
+opt_criterion(55, "default values of variants not being used (roots)").
+#minimize{ 0@255: #true }.
+#minimize{ 0@55: #true }.
 #minimize{
-    1@11+Priority,Package,Variant,Value
+    1@55+Priority,Package,Variant,Value
     : variant_default_not_used(Package, Variant, Value),
       root(Package),
       build_priority(Package, Priority)
 }.
 
 % Try to use default variants or variants that have been set
-opt_criterion(10, "number of non-default variants (non-roots)").
-#minimize{ 0@210: #true }.
-#minimize{ 0@10: #true }.
+opt_criterion(50, "number of non-default variants (non-roots)").
+#minimize{ 0@250: #true }.
+#minimize{ 0@50: #true }.
 #minimize {
-    1@10+Priority,Package,Variant,Value
+    1@50+Priority,Package,Variant,Value
     : variant_not_default(Package, Variant, Value),
       not root(Package),
       build_priority(Package, Priority)
@@ -1147,91 +1212,91 @@ opt_criterion(10, "number of non-default variants (non-roots)").
 
 % Minimize the weights of the providers, i.e. use as much as
 % possible the most preferred providers
-opt_criterion(9, "preferred providers (non-roots)").
-#minimize{ 0@209: #true }.
-#minimize{ 0@9: #true }.
+opt_criterion(45, "preferred providers (non-roots)").
+#minimize{ 0@245: #true }.
+#minimize{ 0@45: #true }.
 #minimize{
-    Weight@9+Priority,Provider,Virtual
+    Weight@45+Priority,Provider,Virtual
     : provider_weight(Provider, Virtual, Weight), not root(Provider),
       build_priority(Provider, Priority)
 }.
 
 % Try to minimize the number of compiler mismatches in the DAG.
-opt_criterion(8, "compiler mismatches").
-#minimize{ 0@208: #true }.
-#minimize{ 0@8: #true }.
+opt_criterion(40, "compiler mismatches").
+#minimize{ 0@240: #true }.
+#minimize{ 0@40: #true }.
 #minimize{
-    1@8+Priority,Package,Dependency
+    1@40+Priority,Package,Dependency
     : compiler_mismatch(Package, Dependency),
       build_priority(Package, Priority)
 }.
 
 % Try to minimize the number of compiler mismatches in the DAG.
-opt_criterion(7, "OS mismatches").
-#minimize{ 0@207: #true }.
-#minimize{ 0@7: #true }.
+opt_criterion(35, "OS mismatches").
+#minimize{ 0@235: #true }.
+#minimize{ 0@35: #true }.
 #minimize{
-    1@7+Priority,Package,Dependency
+    1@35+Priority,Package,Dependency
     : node_os_mismatch(Package, Dependency),
       build_priority(Package, Priority)
 }.
 
-opt_criterion(6, "non-preferred OS's").
-#minimize{ 0@206: #true }.
-#minimize{ 0@6: #true }.
+opt_criterion(30, "non-preferred OS's").
+#minimize{ 0@230: #true }.
+#minimize{ 0@30: #true }.
 #minimize{
-    Weight@6+Priority,Package
+    Weight@30+Priority,Package
     : node_os_weight(Package, Weight),
       build_priority(Package, Priority)
 }.
 
 % Choose more recent versions for nodes
-opt_criterion(5, "version badness").
-#minimize{ 0@205: #true }.
-#minimize{ 0@5: #true }.
+opt_criterion(25, "version badness").
+#minimize{ 0@225: #true }.
+#minimize{ 0@25: #true }.
 #minimize{
-    Weight@5+Priority,Package
+    Weight@25+Priority,Package
     : version_weight(Package, Weight),
       build_priority(Package, Priority)
 }.
 
 % Try to use all the default values of variants
-opt_criterion(4, "default values of variants not being used (non-roots)").
-#minimize{ 0@204: #true }.
-#minimize{ 0@4: #true }.
+opt_criterion(20, "default values of variants not being used (non-roots)").
+#minimize{ 0@220: #true }.
+#minimize{ 0@20: #true }.
 #minimize{
-    1@4+Priority,Package,Variant,Value
+    1@20+Priority,Package,Variant,Value
     : variant_default_not_used(Package, Variant, Value),
       not root(Package),
       build_priority(Package, Priority)
 }.
 
 % Try to use preferred compilers
-opt_criterion(3, "non-preferred compilers").
-#minimize{ 0@203: #true }.
-#minimize{ 0@3: #true }.
+opt_criterion(15, "non-preferred compilers").
+#minimize{ 0@215: #true }.
+#minimize{ 0@15: #true }.
 #minimize{
-    Weight@3+Priority,Package
+    Weight@15+Priority,Package
     : compiler_weight(Package, Weight),
       build_priority(Package, Priority)
 }.
 
 % Minimize the number of mismatches for targets in the DAG, try
 % to select the preferred target.
-opt_criterion(2, "target mismatches").
-#minimize{ 0@202: #true }.
-#minimize{ 0@2: #true }.
+opt_criterion(10, "target mismatches").
+#minimize{ 0@210: #true }.
+#minimize{ 0@10: #true }.
 #minimize{
-    1@2+Priority,Package,Dependency
+    1@10+Priority,Package,Dependency
     : node_target_mismatch(Package, Dependency),
       build_priority(Package, Priority)
 }.
 
-opt_criterion(1, "non-preferred targets").
-#minimize{ 0@201: #true }.
-#minimize{ 0@1: #true }.
+opt_criterion(5, "non-preferred targets").
+#minimize{ 0@205: #true }.
+#minimize{ 0@5: #true }.
 #minimize{
-    Weight@1+Priority,Package
+    Weight@5+Priority,Package
     : node_target_weight(Package, Weight),
       build_priority(Package, Priority)
 }.
@@ -1246,6 +1311,7 @@ opt_criterion(1, "non-preferred targets").
 #heuristic variant_value(Package, Variant, Value) : variant_default_value(Package, Variant, Value), node(Package). [10, true]
 #heuristic provider(Package, Virtual) : possible_provider_weight(Package, Virtual, 0, _), virtual_node(Virtual). [10, true]
 #heuristic node(Package) : possible_provider_weight(Package, Virtual, 0, _), virtual_node(Virtual). [10, true]
+#heuristic node_os(Package, OS) : buildable_os(OS). [10, true]
 
 %-----------
 % Notes
