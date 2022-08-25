@@ -38,16 +38,18 @@ class E3smScream(Package):
 
     version('master',git="https://github.com/E3SM-Project/scream.git", branch='master',submodules=True)
 
-    depends_on('cmake@3.18.0',type=("build", "link", "run"))
-    depends_on('mvapich2@2.3',type=("build", "link","run"))
-    depends_on('netcdf-fortran@4.4.4',type=("build", "link", "run"))
-    depends_on('netcdf-c@4.4.1',type=("build", "link", "run"))
+    depends_on('cmake@3.18.0')
+    depends_on('mvapich2@2.3')
+    depends_on('netcdf-fortran@4.4.4')
+    depends_on('netcdf-c@4.4.1')
     depends_on('cuda')
-    depends_on('parallel-netcdf@1.10.0',type=("build", "link", "run"))
+    depends_on('parallel-netcdf@1.10.0')
+    
     depends_on('python', type=("build", "link", "run"))
     depends_on('py-pip', type=("build","link","run"))
     depends_on('py-pyyaml',type=("build", "link", "run"))
-    depends_on('py-pylint')
+    depends_on('py-pylint',type=("build","link","run"))
+
     depends_on('py-psutil',type=("build", "link", "run"))
     depends_on('perl-xml-libxml',type=("build", "link", "run"))
 
