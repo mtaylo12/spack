@@ -542,6 +542,7 @@ error(2, "Cannot satisfy requirement group for package '{0}'", Package) :-
 #defined requirement_group/2.
 #defined requirement_group_member/3.
 #defined requirement_has_weight/2.
+#defined requirement_policy/3.
 
 %-----------------------------------------------------------------------------
 % Variant semantics
@@ -1057,6 +1058,11 @@ no_flags(Package, FlagType)
 
 % you can't choose an installed hash for a dev spec
 :- hash(Package, Hash), variant_value(Package, "dev_path", _).
+
+% You can't install a hash, if it is not installed
+:- hash(Package, Hash), not installed_hash(Package, Hash).
+% This should be redundant given the constraint above
+:- hash(Package, Hash1), hash(Package, Hash2), Hash1 != Hash2.
 
 % if a hash is selected, we impose all the constraints that implies
 impose(Hash) :- hash(Package, Hash).
