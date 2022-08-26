@@ -60,5 +60,5 @@ class E3smScream(Package):
     conflicts('netcdf-c@4.5:')
 
     def install(self, spec, prefix):
-        #no build required                                                                                                                                                                           
-        return 0
+        # sanity_check_prefix requires something in the install directory
+        mkdirp(prefix.lib)
