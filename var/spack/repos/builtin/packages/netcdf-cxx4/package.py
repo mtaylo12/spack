@@ -1,4 +1,4 @@
-# Copyright 2013-2022 Lawrence Livermore National Security, LLC and other
+# Copyright 2013-2023 Lawrence Livermore National Security, LLC and other
 # Spack Project Developers. See the top-level COPYRIGHT file for details.
 #
 # SPDX-License-Identifier: (Apache-2.0 OR MIT)
@@ -28,6 +28,8 @@ class NetcdfCxx4(AutotoolsPackage):
     depends_on("netcdf-c")
 
     depends_on("doxygen", when="+doc", type="build")
+
+    filter_compiler_wrappers("ncxx4-config", relative_root="bin")
 
     def flag_handler(self, name, flags):
         if name == "cflags" and "+pic" in self.spec:

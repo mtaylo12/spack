@@ -1,4 +1,4 @@
-# Copyright 2013-2021 Lawrence Livermore National Security, LLC and other
+# Copyright 2013-2023 Lawrence Livermore National Security, LLC and other
 # Spack Project Developers. See the top-level COPYRIGHT file for details.
 #
 # SPDX-License-Identifier: (Apache-2.0 OR MIT)
@@ -21,5 +21,4 @@ class RktCextLib(RacketPackage):
     depends_on("rkt-scheme-lib@8.3", type=("build", "run"), when="@8.3")
 
     racket_name = "cext-lib"
-    pkgs = True
     subdirectory = racket_name

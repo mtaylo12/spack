@@ -1,4 +1,4 @@
-# Copyright 2013-2022 Lawrence Livermore National Security, LLC and other
+# Copyright 2013-2023 Lawrence Livermore National Security, LLC and other
 # Spack Project Developers. See the top-level COPYRIGHT file for details.
 #
 # SPDX-License-Identifier: (Apache-2.0 OR MIT)
@@ -66,6 +66,10 @@ class Flex(AutotoolsPackage):
                 iflags.append("-Wno-error=implicit-function-declaration")
         return (iflags, None, None)
 
+    def setup_build_environment(self, env):
+        if self.spec.satisfies("%oneapi@2023.0.0:"):
+            env.set("CFLAGS", "-Wno-error=implicit-function-declaration")
+
     @classmethod
     def determine_version(cls, exe):
         output = Executable(exe)("--version", output=str, error=str)
@@ -113,20 +117,19 @@ class Flex(AutotoolsPackage):
         args += self.enable_or_disable("nls")
         return args
 
-    @run_after("install")
+    @run_after("install", when="+lex")
     def symlink_lex(self):
         """Install symlinks for lex compatibility."""
-        if self.spec.satisfies("+lex"):
-            dso = dso_suffix
-            for dir, flex, lex in (
-                (self.prefix.bin, "flex", "lex"),
-                (self.prefix.lib, "libfl.a", "libl.a"),
-                (self.prefix.lib, "libfl." + dso, "libl." + dso),
-                (self.prefix.lib64, "libfl.a", "libl.a"),
-                (self.prefix.lib64, "libfl." + dso, "libl." + dso),
-            ):
+        dso = dso_suffix
+        for dir, flex, lex in (
+            (self.prefix.bin, "flex", "lex"),
+            (self.prefix.lib, "libfl.a", "libl.a"),
+            (self.prefix.lib, "libfl." + dso, "libl." + dso),
+            (self.prefix.lib64, "libfl.a", "libl.a"),
+            (self.prefix.lib64, "libfl." + dso, "libl." + dso),
+        ):
 
-                if os.path.isdir(dir):
-                    with working_dir(dir):
-                        if os.path.isfile(flex) and not os.path.lexists(lex):
-                            symlink(flex, lex)
+            if os.path.isdir(dir):
+                with working_dir(dir):
+                    if os.path.isfile(flex) and not os.path.lexists(lex):
+                        symlink(flex, lex)

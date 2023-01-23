@@ -1,4 +1,4 @@
-# Copyright 2013-2022 Lawrence Livermore National Security, LLC and other
+# Copyright 2013-2023 Lawrence Livermore National Security, LLC and other
 # Spack Project Developers. See the top-level COPYRIGHT file for details.
 #
 # SPDX-License-Identifier: (Apache-2.0 OR MIT)
@@ -101,6 +101,6 @@ class Must(CMakePackage):
             cmake_args.extend(["-DUSE BACKWARD=Off"])
         else:
             if spec.satisfies("+backward"):
-                cmake_args.extend(["-DSUSE BACKWARD=On"])
+                cmake_args.extend(["-DUSE BACKWARD=On"])
 
         return cmake_args

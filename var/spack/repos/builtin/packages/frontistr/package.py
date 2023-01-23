@@ -1,4 +1,4 @@
-# Copyright 2013-2022 Lawrence Livermore National Security, LLC and other
+# Copyright 2013-2023 Lawrence Livermore National Security, LLC and other
 # Spack Project Developers. See the top-level COPYRIGHT file for details.
 #
 # SPDX-License-Identifier: (Apache-2.0 OR MIT)
@@ -29,7 +29,7 @@ class FrontistrBase(CMakePackage):
     depends_on("trilinos@:12.18.1")
 
     def cmake_args(self):
-        define = CMakePackage.define
+        define = self.define
         cmake_args = [
             define("WITH_ML", True),
             define("REFINER_INCLUDE_PATH", self.spec["revocap-refiner"].prefix.include),

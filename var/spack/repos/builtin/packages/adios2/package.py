@@ -1,4 +1,4 @@
-# Copyright 2013-2022 Lawrence Livermore National Security, LLC and other
+# Copyright 2013-2023 Lawrence Livermore National Security, LLC and other
 # Spack Project Developers. See the top-level COPYRIGHT file for details.
 #
 # SPDX-License-Identifier: (Apache-2.0 OR MIT)
@@ -60,6 +60,9 @@ class Adios2(CMakePackage, CudaPackage):
     variant("mpi", default=True, description="Enable MPI")
 
     # Compression libraries
+    variant(
+        "libpressio", default=False, when="@2.8:", description="Enable LibPressio for compression"
+    )
     variant("blosc", default=True, when="@2.4:", description="Enable Blosc compression")
     variant("bzip2", default=True, when="@2.4:", description="Enable BZip2 compression")
     variant("zfp", default=True, description="Enable ZFP compression")
@@ -88,6 +91,9 @@ class Adios2(CMakePackage, CudaPackage):
     conflicts("%intel@:15")
     conflicts("%pgi@:14")
 
+    # ifx does not support submodules in separate files
+    conflicts("%oneapi@:2022.1.0", when="+fortran")
+
     depends_on("cmake@3.12.0:", type="build")
     depends_on("pkgconfig", type="build")
 
@@ -103,6 +109,7 @@ class Adios2(CMakePackage, CudaPackage):
     depends_on("hdf5~mpi", when="+hdf5~mpi")
     depends_on("hdf5+mpi", when="+hdf5+mpi")
 
+    depends_on("libpressio", when="+libpressio")
     depends_on("c-blosc", when="+blosc")
     depends_on("bzip2", when="+bzip2")
     depends_on("libpng@1.6:", when="+png")
@@ -178,6 +185,7 @@ class Adios2(CMakePackage, CudaPackage):
             from_variant("ADIOS2_USE_SZ", "sz"),
             from_variant("ADIOS2_USE_ZFP", "zfp"),
             from_variant("ADIOS2_USE_CUDA", "cuda"),
+            from_variant("ADIOS2_USE_LIBPRESSIO", "libpressio"),
             self.define("BUILD_TESTING", self.run_tests),
             self.define("ADIOS2_BUILD_EXAMPLES", False),
             self.define("ADIOS2_USE_Endian_Reverse", True),
@@ -203,6 +211,7 @@ class Adios2(CMakePackage, CudaPackage):
 
         if "+python" in spec or self.run_tests:
             args.append("-DPYTHON_EXECUTABLE:FILEPATH=%s" % spec["python"].command.path)
+            args.append("-DPython_EXECUTABLE:FILEPATH=%s" % spec["python"].command.path)
 
         return args
 

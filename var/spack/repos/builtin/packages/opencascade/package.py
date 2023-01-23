@@ -1,4 +1,4 @@
-# Copyright 2013-2022 Lawrence Livermore National Security, LLC and other
+# Copyright 2013-2023 Lawrence Livermore National Security, LLC and other
 # Spack Project Developers. See the top-level COPYRIGHT file for details.
 #
 # SPDX-License-Identifier: (Apache-2.0 OR MIT)
@@ -18,6 +18,11 @@ class Opencascade(CMakePackage):
 
     maintainers = ["wdconinc"]
 
+    version(
+        "7.6.3",
+        extension="tar.gz",
+        sha256="baae5b3a7a38825396fc45ef9d170db406339f5eeec62e21b21036afeda31200",
+    )
     version(
         "7.6.0",
         extension="tar.gz",

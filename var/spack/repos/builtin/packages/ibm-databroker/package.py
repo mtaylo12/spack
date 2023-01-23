@@ -1,4 +1,4 @@
-# Copyright 2013-2022 Lawrence Livermore National Security, LLC and other
+# Copyright 2013-2023 Lawrence Livermore National Security, LLC and other
 # Spack Project Developers. See the top-level COPYRIGHT file for details.
 #
 # SPDX-License-Identifier: (Apache-2.0 OR MIT)
@@ -7,7 +7,7 @@
 from spack.package import *
 
 
-class IbmDatabroker(CMakePackage, PythonPackage):
+class IbmDatabroker(CMakePackage, PythonExtension):
     """The Data Broker (DBR) is a distributed, in-memory container of key-value
     stores enabling applications in a workflow to exchange data through one or
     more shared namespaces. Thanks to a small set of primitives, applications

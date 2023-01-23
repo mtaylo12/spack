@@ -1,4 +1,4 @@
-# Copyright 2013-2022 Lawrence Livermore National Security, LLC and other
+# Copyright 2013-2023 Lawrence Livermore National Security, LLC and other
 # Spack Project Developers. See the top-level COPYRIGHT file for details.
 #
 # SPDX-License-Identifier: (Apache-2.0 OR MIT)
@@ -22,6 +22,7 @@ class Xgboost(CMakePackage, CudaPackage):
     maintainers = ["adamjstewart"]
 
     version("master", branch="master", submodules=True)
+    version("1.6.2", tag="v1.6.2", submodules=True)
     version("1.6.1", tag="v1.6.1", submodules=True)
     version("1.5.2", tag="v1.5.2", submodules=True)
     version("1.3.3", tag="v1.3.3", submodules=True)

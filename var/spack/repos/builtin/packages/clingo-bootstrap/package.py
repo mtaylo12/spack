@@ -1,4 +1,4 @@
-# Copyright 2013-2022 Lawrence Livermore National Security, LLC and other
+# Copyright 2013-2023 Lawrence Livermore National Security, LLC and other
 # Spack Project Developers. See the top-level COPYRIGHT file for details.
 #
 # SPDX-License-Identifier: (Apache-2.0 OR MIT)
@@ -67,6 +67,8 @@ class ClingoBootstrap(Clingo):
             if "+static_libstdcpp" in self.spec:
                 # This is either linux or cray
                 opts = "-static-libstdc++ -static-libgcc -Wl,--exclude-libs,ALL"
+        elif "platform=windows" in self.spec:
+            pass
         else:
             msg = 'unexpected compiler for spec "{0}"'.format(self.spec)
             raise RuntimeError(msg)

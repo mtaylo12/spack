@@ -1,4 +1,4 @@
-# Copyright 2013-2022 Lawrence Livermore National Security, LLC and other
+# Copyright 2013-2023 Lawrence Livermore National Security, LLC and other
 # Spack Project Developers. See the top-level COPYRIGHT file for details.
 #
 # SPDX-License-Identifier: (Apache-2.0 OR MIT)
@@ -8,7 +8,7 @@ import os
 from spack.package import *
 
 
-class PyPip(Package):
+class PyPip(Package, PythonExtension):
     """The PyPA recommended tool for installing Python packages."""
 
     homepage = "https://pip.pypa.io/"
@@ -17,6 +17,11 @@ class PyPip(Package):
 
     maintainers = ["adamjstewart", "pradyunsg"]
 
+    version(
+        "22.2.2",
+        sha256="b61a374b5bc40a6e982426aede40c9b5a08ff20e640f5b56977f4f91fed1e39a",
+        expand=False,
+    )
     version(
         "22.1.2",
         sha256="a3edacb89022ef5258bf61852728bf866632a394da837ca49eb4303635835f17",
@@ -94,7 +99,7 @@ class PyPip(Package):
         python(*args)
 
     def setup_dependent_package(self, module, dependent_spec):
-        pip = self.spec["python"].command
+        pip = dependent_spec["python"].command
         pip.add_default_arg("-m")
         pip.add_default_arg("pip")
         setattr(module, "pip", pip)

@@ -1,4 +1,4 @@
-# Copyright 2013-2022 Lawrence Livermore National Security, LLC and other
+# Copyright 2013-2023 Lawrence Livermore National Security, LLC and other
 # Spack Project Developers. See the top-level COPYRIGHT file for details.
 #
 # SPDX-License-Identifier: (Apache-2.0 OR MIT)
@@ -228,8 +228,8 @@ class PseudoShell(object):
         self.minion_function = minion_function
 
         # these can be optionally set to change defaults
-        self.controller_timeout = 1
-        self.sleep_time = 0
+        self.controller_timeout = 3
+        self.sleep_time = 0.1
 
     def start(self, **kwargs):
         """Start the controller and minion processes.
