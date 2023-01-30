@@ -4,7 +4,8 @@
 # SPDX-License-Identifier: (Apache-2.0 OR MIT)
 
 from spack.package import *
-
+from xml.dom import minidom
+import os
 
 class E3smScream(Package):
     """Builds dependencies for E3SM SCREAM"""
@@ -33,6 +34,68 @@ class E3smScream(Package):
 
     conflicts("diffutils@3.8:", when="%intel")
     conflicts("netcdf-c@4.5:")
+
+    @run_after("install")
+    def gen_xml(self):
+
+        #xml setup
+        root = minidom.Document()
+        xml = root.createElement('root')
+        root.appendChild(xml)
+        mach = root.createElement('mach')
+        mach.setAttribute('name', 'machine name here')
+        xml.appendChild(mach)
+
+        #machine description entry
+        desc = root.createElement('DESC')
+        mach.appendChild(desc)
+        desc_text = root.createTextNode('Machine description here')
+        desc.appendChild(desc_text)
+
+        #compiler entry
+        compiler = root.createElement('COMPILERS')
+        mach.appendChild(compiler)
+        curr_compiler = self.compiler.name
+        comp_text = root.createTextNode(curr_compiler)
+        compiler.appendChild(comp_text)
+
+        #mpi entry
+        mpi = root.createElement('MPILIBS')
+        mach.appendChild(mpi)
+        mpi.appendChild(root.createTextNode(self.spec['mpi'].name))
+
+        #environment variables
+        env_var = root.createElement('environment_variables')
+        env_var.setAttribute('compiler', self.compiler.name)
+        mach.appendChild(env_var)
+        
+        netcdf_c = root.createElement('env')
+        netcdf_c.setAttribute('name',"NETCDF_C_PATH")
+        netcdf_c.appendChild(root.createTextNode(self.spec["netcdf-c"].prefix))
+        env_var.appendChild(netcdf_c)
+
+        netcdf_fort = root.createElement('env')
+        netcdf_fort.setAttribute('name',"NETCDF_FORTRAN_PATH")
+        netcdf_fort.appendChild(root.createTextNode(self.spec["netcdf-fortran"].prefix))
+        env_var.appendChild(netcdf_fort)
+
+        p_netcdf = root.createElement('env')
+        p_netcdf.setAttribute('name',"PNETCDF_PATH")
+        p_netcdf.appendChild(root.createTextNode(self.spec["parallel-netcdf"].prefix))
+        env_var.appendChild(p_netcdf)
+        
+        
+
+
+        #saving to file in stage directory
+        xml_str = root.toprettyxml(indent ="\t")
+        save_path_file = join_path(self.stage.source_path, "machine-config.xml")
+        with open(save_path_file, "w") as f:
+            f.write(xml_str)
+
+
+
+        
 
     def install(self, spec, prefix):
         mkdirp(prefix.lib)
