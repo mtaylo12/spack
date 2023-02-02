@@ -63,7 +63,17 @@ class E3smScream(Package):
         mpi = root.createElement('MPILIBS')
         mach.appendChild(mpi)
         mpi.appendChild(root.createTextNode(self.spec['mpi'].name))
+        
+        #modules
+        modules = root.createElement('modules')
+        modules.setAttribute('compiler',self.compiler.name)
+        mach.appendChild(modules)
 
+        comp_module = root.createElement('command')
+        comp_module.setAttribute('name','load')
+        comp_module.appendChild(root.createTextNode(self.compiler.name + '/' + str(self.compiler.version)))
+        modules.appendChild(comp_module)
+        
         #environment variables
         env_var = root.createElement('environment_variables')
         env_var.setAttribute('compiler', self.compiler.name)
