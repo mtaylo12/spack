@@ -39,12 +39,13 @@ class E3smScream(Package):
     def gen_xml(self):
 
         #xml setup
-        root = minidom.Document()
-        xml = root.createElement('root')
-        root.appendChild(xml)
+        root = minidom.parse(join_path(self.stage.source_path, "cime_config/machines/config_machines.xml"))
+        
+        xml = root.childNodes[0]
+
         mach = root.createElement('mach')
         mach.setAttribute('name', 'machine name here')
-        xml.appendChild(mach)
+        xml.insertBefore(mach, xml.childNodes[0])
 
         #machine description entry
         desc = root.createElement('DESC')
@@ -89,7 +90,7 @@ class E3smScream(Package):
 
         #saving to file in stage directory
         xml_str = root.toprettyxml(indent ="\t")
-        save_path_file = join_path(self.stage.source_path, "machine-config.xml")
+        save_path_file = join_path(self.stage.source_path, "cime_config/machines/config_machines.xml")
         with open(save_path_file, "w") as f:
             f.write(xml_str)
 
