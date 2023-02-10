@@ -25,7 +25,7 @@ literal_not_solved(ID) :- not literal_solved(ID), literal(ID).
 
 opt_criterion(300, "number of input specs not concretized").
 #minimize{ 0@300: #true }.
-#minimize { 1@300,ID : literal_not_solved(ID) }.
+#minimize { 1@300,ID : literal_not_solved(ID) }.	%minimize the number of unsolved literals with priority 300
 
 % Map constraint on the literal ID to the correct PSID
 attr(Name, A1)             :- literal(LiteralID, Name, A1), literal_solved(LiteralID).
@@ -49,10 +49,10 @@ attr(Name, A1, A2, A3, A4) :- literal(LiteralID, Name, A1, A2, A3, A4), literal_
 version_declared(Package, Version, Weight) :- version_declared(Package, Version, Weight, _).
 
 % We can't emit the same version **with the same weight** from two different sources
-:- version_declared(Package, Version, Weight, Origin1),
+:- version_declared(Package, Version, Weight, Origin1),	       %how are version weights determined (in asp.py)?
    version_declared(Package, Version, Weight, Origin2),
    Origin1 < Origin2,
-   internal_error("Two versions with identical weights").
+   internal_error("Two versions with identical weights").	%internal error predicates built in package specific .lp
 
 % We cannot use a version declared for an installed package if we end up building it
 :- version_declared(Package, Version, Weight, "installed"),
@@ -165,6 +165,7 @@ attr("node_version_satisfies", Package, Constraint)
 % The conditions are `@2.0+variant` and `@1.9:`, and the imposed constraints
 % are `@1.0+bar` on `foo` and `@2:` on `mpi`.
 %-----------------------------------------------------------------------------
+
 % conditions are specified with `condition_requirement` and hold when
 % corresponding spec attributes hold.
 condition_holds(ID) :-
@@ -279,7 +280,7 @@ error(0, Msg) :- attr("node", Package),
    not external(Package),  % ignore conflicts for externals
    not attr("hash", Package, _).  % ignore conflicts for installed packages
 
-#defined conflict/4.
+#defined conflict/4. 	     %defined in package .lp
 
 %-----------------------------------------------------------------------------
 % Virtual dependencies
@@ -701,7 +702,7 @@ attr("node_platform_set", Package) :- attr("node_platform_set", Package, _).
 % each node must have a single platform
 error(2, "No valid platform found for {0}", Package)
   :- attr("node", Package),
-     C = #count{ Platform : attr("node_platform", Package, Platform)},
+     C = #count{ Platform : attr("node_platform", Package, Platform)},	
      C < 1.
 
 error(2, "Cannot concretize {0} with multiple platforms\n    Requested 'platform={1}' and 'platform={2}'", Package, Platform1, Platform2)
@@ -1063,7 +1064,6 @@ impose(Hash) :- attr("hash", Package, Hash).
 build(Package) :- not attr("hash", Package, _), attr("node", Package).
 
 % Minimizing builds is tricky. We want a minimizing criterion
-
 % because we want to reuse what is avaialble, but
 % we also want things that are built to stick to *default preferences* from
 % the package and from the user. We therefore treat built specs differently and apply
