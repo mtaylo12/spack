@@ -35,6 +35,7 @@ import spack.user_environment as uenv
 import spack.util.spack_json as sjson
 import spack.util.string
 
+import time
 # cmd has a submodule called "list" so preserve the python list module
 python_list = list
 
@@ -221,6 +222,7 @@ def parse_specs(args, **kwargs):
         specs = spack.parser.parse(sargs)
         for spec in specs:
             if concretize:
+                #call to spec class concretization
                 spec.concretize(tests=tests)  # implies normalize
             elif normalize:
                 spec.normalize(tests=tests)

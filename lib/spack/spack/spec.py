@@ -91,6 +91,8 @@ import spack.util.string
 import spack.variant as vt
 import spack.version as vn
 
+import time
+
 __all__ = [
     "CompilerSpec",
     "Spec",
@@ -2756,6 +2758,7 @@ class Spec(object):
             raise SpecDeprecatedError(msg)
 
     def _new_concretize(self, tests=False):
+        print("beginning new concretize", flush=True)
         import spack.solver.asp
 
         if not self.name:
@@ -2764,13 +2767,19 @@ class Spec(object):
         if self._concrete:
             return
 
+        start = time.time()
+        print("getting solver", flush=True)
         solver = spack.solver.asp.Solver()
+        print("calling solver.solve", flush=True)
         result = solver.solve([self], tests=tests)
         result.raise_if_unsat()
-
+        print("solving for spec concretization (spack/lib/spack/spack/spec.py): ", time.time() - start)
+        
         # take the best answer
+
         opt, i, answer = min(result.answers)
         name = self.name
+        
         # TODO: Consolidate this code with similar code in solve.py
         if self.virtual:
             providers = [spec.name for spec in answer.values() if spec.package.provides(name)]
@@ -2780,6 +2789,7 @@ class Spec(object):
 
         concretized = answer[name]
         self._dup(concretized)
+
 
     def concretize(self, tests=False):
         """Concretize the current spec.
@@ -2794,6 +2804,7 @@ class Spec(object):
         else:
             self._old_concretize(tests)
 
+            
     def _mark_root_concrete(self, value=True):
         """Mark just this spec (not dependencies) concrete."""
         if (not value) and self.concrete and self.installed:

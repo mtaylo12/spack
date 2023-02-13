@@ -18,11 +18,13 @@ import spack.hash_types as ht
 import spack.spec
 import spack.store
 
+import time
+
 description = "show what would be installed, given a spec"
 section = "build"
 level = "short"
 
-
+"""Required of all commands to define which arguments and flags the command takes."""
 def setup_parser(subparser):
     subparser.epilog = """\
 when an environment is active and no specs are provided, the environment root \
@@ -78,8 +80,12 @@ for further documentation regarding the spec syntax, see:
     arguments.add_common_arguments(subparser, ["specs"])
     arguments.add_concretizer_args(subparser)
 
-
+"""When running a command, this is where spack begins"""
 def spec(parser, args):
+
+    print("Starting timer within spec.")
+    start = time.time()
+    
     name_fmt = "{namespace}.{name}" if args.namespaces else "{name}"
     fmt = "{@version}{%compiler}{compiler_flags}{variants}{arch=architecture}"
     install_status_fn = spack.spec.Spec.install_status
@@ -97,19 +103,27 @@ def spec(parser, args):
     if args.install_status:
         tree_context = spack.store.db.read_transaction
 
-    # Use command line specified specs, otherwise try to use environment specs.
+    # Use command line specified specs, otherwise try to use environment specs (must be run within active env)
+    begin_parsing = time.time()
+    com_specs = False
     if args.specs:
+        com_specs = True
         input_specs = spack.cmd.parse_specs(args.specs)
+        begin_concretizing = time.time()
         concretized_specs = spack.cmd.parse_specs(args.specs, concretize=True)
         specs = list(zip(input_specs, concretized_specs))
     else:
         env = ev.active_environment()
         if env:
+            begin_concretizing = time.time()
             env.concretize()
             specs = env.concretized_specs()
         else:
             tty.die("spack spec requires at least one spec or an active environment")
 
+
+    printout = time.time()
+    
     for (input, output) in specs:
         # With -y, just print YAML to output.
         if args.format:
@@ -136,3 +150,16 @@ def spec(parser, args):
 
             tree_kwargs["hashes"] = args.long or args.very_long
             print(output.tree(**tree_kwargs))
+
+    finaltime = time.time()
+
+    print("--------------------------------")
+    print("setup and parsing time:", (begin_concretizing - start))
+    if com_specs:
+        print("using command line specs")
+    else:
+        print("using env specs")
+    print("concretizing time: ",(printout - begin_concretizing))
+    print("remaining time: ", (finaltime - printout))
+    print("total time: ", (finaltime-start))
+

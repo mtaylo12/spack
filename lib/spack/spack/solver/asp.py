@@ -678,8 +678,10 @@ class PyclingoDriver(object):
         timer = spack.util.timer.Timer()
 
         # Initialize the control object for the solver
+        print("initialize control object",flush=True)
         self.control = control or default_clingo_control()
         # set up the problem -- this generates facts and rules
+        print("generate facts and rules",flush=True)
         self.assumptions = []
         timer.start("setup")
         with self.control.backend() as backend:
@@ -690,6 +692,7 @@ class PyclingoDriver(object):
         timer.start("load")
         # read in the main ASP program and display logic -- these are
         # handwritten, not generated, so we load them as resources
+        print("load main ASP program and display logic", flush=True)
         parent_dir = os.path.dirname(__file__)
 
         # extract error messages from concretize.lp by inspecting its AST
@@ -709,7 +712,7 @@ class PyclingoDriver(object):
             path = os.path.join(parent_dir, "concretize.lp")
             parse_files([path], visit)
 
-        # If we're only doing setup, just return an empty solve result
+        # If we're only doing setup, just return an empty solve result (spack solve stops here).
         if output.setup_only:
             return Result(specs), None, None
 
@@ -719,6 +722,7 @@ class PyclingoDriver(object):
         self.control.load(os.path.join(parent_dir, "display.lp"))
         timer.stop("load")
 
+        print("grounding", flush=True)
         # Grounding is the first step in the solve -- it turns our facts
         # and first-order logic rules into propositional logic.
         timer.start("ground")
@@ -726,6 +730,7 @@ class PyclingoDriver(object):
         timer.stop("ground")
 
         # With a grounded program, we can run the solve.
+        print("solving setup", flush=True)
         result = Result(specs)
         models = []  # stable models if things go well
         cores = []  # unsatisfiable cores if they do not
@@ -742,9 +747,12 @@ class PyclingoDriver(object):
         if clingo_cffi:
             solve_kwargs["on_unsat"] = cores.append
 
+        print("clingo solve", flush=True)
         timer.start("solve")
         solve_result = self.control.solve(**solve_kwargs)
         timer.stop("solve")
+
+        print("construct solve result", flush=True)
 
         # once done, construct the solve result
         result.satisfiable = solve_result.satisfiable
