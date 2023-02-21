@@ -110,6 +110,7 @@ def spec(parser, args):
         com_specs = True
         input_specs = spack.cmd.parse_specs(args.specs)
         begin_concretizing = time.time()
+        #concretizing happens here (goes to parse_specs function and then spec class solve method)
         concretized_specs = spack.cmd.parse_specs(args.specs, concretize=True)
         specs = list(zip(input_specs, concretized_specs))
     else:

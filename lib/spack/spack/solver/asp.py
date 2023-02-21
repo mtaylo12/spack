@@ -677,11 +677,12 @@ class PyclingoDriver(object):
 
         timer = spack.util.timer.Timer()
 
-        # Initialize the control object for the solver
-        print("initialize control object",flush=True)
+        # Initialize the control object for the solver (stores entire problem with result)
+        # Initialized to default control object unless other is specified (as parameter to solve)
+        print("% initialize control object",flush=True)
         self.control = control or default_clingo_control()
         # set up the problem -- this generates facts and rules
-        print("generate facts and rules",flush=True)
+        print("% generate facts and rules",flush=True)
         self.assumptions = []
         timer.start("setup")
         with self.control.backend() as backend:
@@ -692,7 +693,7 @@ class PyclingoDriver(object):
         timer.start("load")
         # read in the main ASP program and display logic -- these are
         # handwritten, not generated, so we load them as resources
-        print("load main ASP program and display logic", flush=True)
+        print("% load main ASP program and display logic", flush=True)
         parent_dir = os.path.dirname(__file__)
 
         # extract error messages from concretize.lp by inspecting its AST

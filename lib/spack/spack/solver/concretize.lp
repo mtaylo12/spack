@@ -12,10 +12,13 @@
 %-----------------------------------------------------------------------------
 
 % Give clingo the choice to solve an input spec or not
+% Literal is onlly created for the root input spec.
+% When would there be more than one? When there are multiple input specs given.
 { literal_solved(ID) } :- literal(ID).
 literal_not_solved(ID) :- not literal_solved(ID), literal(ID).
 
-% If concretize_everything() is a fact, then we cannot have unsolved specs
+% If concretize_everything() is a fact, then we cannot have unsolved specs.
+% concretize_everything might be false if we are using "solve_in_rounds"
 :- literal_not_solved(ID), concretize_everything.
 
 % Make a problem with "zero literals solved" unsat. This is to trigger
@@ -23,11 +26,14 @@ literal_not_solved(ID) :- not literal_solved(ID), literal(ID).
 % in better reporting for users. See #30669 for details.
 1 { literal_solved(ID) : literal(ID) }.
 
+
 opt_criterion(300, "number of input specs not concretized").
-#minimize{ 0@300: #true }.
+#minimize{ 0@300: #true }.    %add one item with weight 0 to 300 priority bucket for display purposes
 #minimize { 1@300,ID : literal_not_solved(ID) }.	%minimize the number of unsolved literals with priority 300
 
-% Map constraint on the literal ID to the correct PSID
+% Map constraint on the literal ID to the correct PSID (attr introduced here)
+% for the literal, example attr names are root, node, node_compiler_set, node_compiler_version_satisfies
+% A1 is always the name of the literal spec (eg clingo)
 attr(Name, A1)             :- literal(LiteralID, Name, A1), literal_solved(LiteralID).
 attr(Name, A1, A2)         :- literal(LiteralID, Name, A1, A2), literal_solved(LiteralID).
 attr(Name, A1, A2, A3)     :- literal(LiteralID, Name, A1, A2, A3), literal_solved(LiteralID).
@@ -44,12 +50,16 @@ attr(Name, A1, A2, A3, A4) :- literal(LiteralID, Name, A1, A2, A3, A4), literal_
 % Version semantics
 %-----------------------------------------------------------------------------
 
-% Versions are declared with a weight and an origin, which indicates where the
+% Versions are declared (for each dependency)with a weight and an origin, which indicates where the
 % version was declared (e.g. "package_py" or "external").
+% source is ignored here
 version_declared(Package, Version, Weight) :- version_declared(Package, Version, Weight, _).
 
 % We can't emit the same version **with the same weight** from two different sources
-:- version_declared(Package, Version, Weight, Origin1),	       %how are version weights determined (in asp.py)?
+% QUESTION: how are version weights determined
+% QUESTION: what if the package doesn't add this error (didn't really track down where internal errors are generated)
+% QUESTION: can this be optimized further like the queens problem? use a choice aggregate?
+:- version_declared(Package, Version, Weight, Origin1),	
    version_declared(Package, Version, Weight, Origin2),
    Origin1 < Origin2,
    internal_error("Two versions with identical weights").	%internal error predicates built in package specific .lp
@@ -57,7 +67,7 @@ version_declared(Package, Version, Weight) :- version_declared(Package, Version,
 % We cannot use a version declared for an installed package if we end up building it
 :- version_declared(Package, Version, Weight, "installed"),
    attr("version", Package, Version),
-   version_weight(Package, Weight),
+   version_weight(Package, Weight),   
    not attr("hash", Package, _),
    internal_error("Reuse version weight used for built package").
 
@@ -76,17 +86,21 @@ version_satisfies(Package, Constraint, HashVersion) :- version_satisfies(Package
 % against to ensure they cannot be inferred when a non-error solution is
 % possible
 { attr("version", Package, Version) : version_declared(Package, Version) }
- :- attr("node", Package).
+:- attr("node", Package).
+
+% QUESTION: this could similarly be optimized liked the queens problem using an aggregate
 error(2, "No version for '{0}' satisfies '@{1}' and '@{2}'", Package, Version1, Version2)
   :- attr("node", Package),
      attr("version", Package, Version1),
      attr("version", Package, Version2),
      Version1 < Version2.  % see[1]
 
+% optimize agains the error that a node is assigned no version
 error(2, "No versions available for package '{0}'", Package)
   :- attr("node", Package), not attr("version", Package, _).
 
 % A virtual package may or may not have a version, but never has more than one
+% QUESTION: same aggregate optimization?
 error(2, "No version for '{0}' satisfies '@{1}' and '@{2}'", Virtual, Version1, Version2)
   :- attr("virtual_node", Virtual),
      attr("version", Virtual, Version1),
@@ -124,6 +138,7 @@ possible_version_weight(Package, Weight)
    not build(Package),
    internal_error("Build version weight used for reused package").
 
+% chose exactly 1 package, weight pairing for the version we are using
 1 { version_weight(Package, Weight) : version_declared(Package, Version, Weight) } 1
   :- attr("version", Package, Version),
      attr("node", Package).
@@ -306,6 +321,8 @@ error(2, "Cannot find valid provider for virtual {0}", Virtual)
   :- attr("virtual_node", Virtual),
      P = #count{ Package : provider(Package, Virtual)},
      P < 1.
+
+% QUESTION: use aggregate here again? to avoid combinatorial blow up (this would break the error statement 
 error(2, "Spec cannot include multiple providers for virtual '{0}'\n    Requested '{1}' and '{2}'", Virtual, P1, P2)
   :- attr("virtual_node", Virtual),
      provider(P1, Virtual),
@@ -402,6 +419,7 @@ possible_provider_weight(Dependency, Virtual, 100, "fallback") :- provider(Depen
 error(2, "Attempted to use external for '{0}' which does not satisfy any configured external spec", Package)
   :- external(Package),
      not external_version(Package, _, _).
+% QUESTION: use aggregate to optimize? what does this do, seems to ensure that theres a unique (version,weight)
 error(2, "Attempted to use external for '{0}' which does not satisfy any configured external spec", Package)
   :- external(Package),
      external_version(Package, Version1, Weight1),
@@ -519,6 +537,7 @@ attr("variant_value", Package, Variant, Value) :-
   attr("variant_propagate", Package, Variant, Value, _),
   variant_possible_value(Package, Variant, Value).
 
+% QUESITON: Why is the summetry breaking not used here?
 error(2, "{0} and {1} cannot both propagate variant '{2}' to package {3} with values '{4}' and '{5}'", Source1, Source2, Variant, Package, Value1, Value2) :-
   attr("variant_propagate", Package, Variant, Value1, Source1),
   attr("variant_propagate", Package, Variant, Value2, Source2),
@@ -545,6 +564,7 @@ attr("variant_value", Package, Variant, Value) :-
   variant_default_value(Package, Variant, Value),
   build(Package).
 
+% the "at most one" is enforced below
 % at most one variant value for single-valued variants.
 {
   attr("variant_value", Package, Variant, Value)
@@ -602,6 +622,7 @@ attr("variant_value", Package, Variant, Value)
 % The rules below allow us to prefer default values for variants
 % whenever possible. If a variant is set in a spec, or if it is
 % specified in an external, we score it as if it was a default value.
+% This is minimized later.
 variant_not_default(Package, Variant, Value)
  :- attr("variant_value", Package, Variant, Value),
     not variant_default_value(Package, Variant, Value),
@@ -616,7 +637,7 @@ variant_not_default(Package, Variant, Value)
     attr("node", Package).
 
 
-% A default variant value that is not used
+% A default variant value that is not used (also minimized later)
 variant_default_not_used(Package, Variant, Value)
   :- variant_default_value(Package, Variant, Value),
      not attr("variant_value", Package, Variant, Value),
@@ -687,6 +708,7 @@ variant_single_value(Package, "dev_path")
 %-----------------------------------------------------------------------------
 
 % if no platform is set, fall back to the default
+% node_platform_default set in package generated program
 attr("node_platform", Package, Platform)
  :- attr("node", Package),
     not attr("node_platform_set", Package),
@@ -718,6 +740,7 @@ error(2, "Cannot concretize {0} with multiple platforms\n    Requested 'platform
 os(OS) :- os(OS, _).
 
 % one os per node
+% QUESTION: why is this the setup, so different roots can use different os if necessary?
 { attr("node_os", Package, OS) : os(OS) } :- attr("node", Package).
 
 error(2, "Cannot find valid operating system for '{0}'", Package)
@@ -732,6 +755,7 @@ error(2, "Cannot concretize {0} with multiple operating systems\n    Requested '
      OS1 < OS2. %see [1]
 
 % can't have a non-buildable OS on a node we need to build
+% buildable_os is set up in package generated program
 error(2, "Cannot concretize '{0} os={1}'. Operating system '{1}' is not buildable", Package, OS)
  :- build(Package),
     attr("node_os", Package, OS),
@@ -751,7 +775,7 @@ node_os_weight(Package, Weight)
     attr("node_os", Package, OS),
     os(OS, Weight).
 
-% match semantics for OS's
+% match semantics for OS's (later we minimize with error node_os_mismatch)
 node_os_match(Package, Dependency) :-
    depends_on(Package, Dependency), attr("node_os", Package, OS), attr("node_os", Dependency, OS).
 node_os_mismatch(Package, Dependency) :-
