@@ -30,6 +30,8 @@ literal_not_solved(ID) :- not literal_solved(ID), literal(ID).
 #const solve_prio = 1000000.
 #const build_prio = 100000.  % n_nodes x depth_offset x max levels needs to be less than this
 #const depth_offset = 100.   % depth_offset-1 is the max id for leveled criteria
+%#const max_depth = 1. passed at command line or default to 1
+
 
 opt_criterion(solve_prio, "fixed", "number of input specs not concretized").
 #minimize{ 0@solve_prio: #true }.
@@ -1117,7 +1119,7 @@ build_priority(Package, build_prio) :- attr("node", Package), not optimize_for_r
 % Calculate min depth of nodes in the DAG
 % We use this to optimize nodes closer to roots with higher precedence.
 %-----------------------------------------------------------------------------
-#const max_depth = 4.
+%#const max_depth = 4.
 
 % roots have depth 0.
 depth(Package, 0) :- attr("root", Package).
@@ -1310,8 +1312,6 @@ opt_criterion(5, "leveled", "non-preferred targets").
 %-----------------
 
 #heuristic attr("version", Package, Version) : version_declared(Package, Version, 0), attr("node", Package). [10, true]
-
-
 #heuristic version_weight(Package, 0) : version_declared(Package, Version, 0), attr("node", Package). [10, true]
 #heuristic attr("node_target", Package, Target) : package_target_weight(Target, Package, 0), attr("node", Package). [10, true]
 #heuristic node_target_weight(Package, 0) : attr("node", Package). [10, true]
