@@ -17,7 +17,7 @@
 
 % names of optimization criteria (generated in minimize.lp)
 #show opt_criterion/3. 
-
+#show depends_on/2.
 #show requirement_has_weight/2.
 
 % error types

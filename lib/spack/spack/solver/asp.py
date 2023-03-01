@@ -686,8 +686,7 @@ class PyclingoDriver(object):
         # TODO: this raises early -- we should handle multiple errors if there are any.
         raise UnsatisfiableSpecError(msg)
 
-
-
+    
             
     def solve(self, setup, specs, reuse=None, output=None, control=None, depth=1):
         """Set up the input and solve for dependencies of ``specs``.
@@ -705,11 +704,6 @@ class PyclingoDriver(object):
             A tuple of the solve result, the timer for the different phases of the
             solve, and the internal statistics from clingo.
         """
-
-
-        # TODO: make this an arg
-        reconstruct = True
-
 
         
         output = output or DEFAULT_OUTPUT_CONFIGURATION
@@ -759,12 +753,8 @@ class PyclingoDriver(object):
         
         self.control.load(os.path.join(parent_dir, "concretize.lp"))
         self.control.load(os.path.join(parent_dir, "os_compatibility.lp"))
-        if reconstruct:
-            self.control.load(os.path.join(parent_dir, "display-recreate.lp"))
-        else:
-            self.control.load(os.path.join(parent_dir, "display.lp"))
+        self.control.load(os.path.join(parent_dir, "display.lp"))
 
-        # TODO: make depth a parameter too?
         self.control.add("depth", [], "#const max_depth = " + str(depth) + ".")
         timer.stop("load")
 
@@ -802,15 +792,7 @@ class PyclingoDriver(object):
 
                 
         if result.satisfiable:
-            if reconstruct:
-                for idx, (min_cost, _, curr_model) in enumerate(sorted(models)):
-                    if idx >= 10:
-                        break
-                    setup.setup_final_state(idx, min_cost, curr_model)
-                        
-                #return Result(specs), None, None
-                
-                
+                            
             # get the best model
             builder = SpecBuilder(specs, hash_lookup=setup.reusable_and_possible)
             min_cost, priorities, best_model = min(models)
@@ -2082,71 +2064,6 @@ class SpackSolverSetup(object):
                 if spec.concrete:
                     self._facts_from_concrete_spec(spec, possible)
 
-    def setup_final_state(self, idx, min_cost, model):
-        """Generate an ASP program with relevant rules for the final state.
-
-        Arguments:
-            driver has already been set by setup
-
-        requirement_weight(Package, Weight),
-        """
-        #TODO: only need deprecated attr? or want all attr to represent solution
-        general_predicates = ["attr",
-                              "build_priority",
-                              "depth",
-                              "build",
-                              "version_declared",
-                              "error",
-                              "internal_error",
-                              "opt_criterion"
-                              "requirement_has_weight"]
-        
-        weight_predicates = ["requirement_weight",
-                             "version_weight",
-                             "provider_weight",
-                             "compiler_weight",
-                             "node_os_weight",
-                             "node_target_weight"]
-        
-        rest_predicates = ["compiler_mismatch",
-                           "compiler_mismatch_required",
-                           "node_os_mismatch",
-                           "node_target_mismatch",
-                           "variant_not_default",
-                           "variant_default_not_used",
-                           "literal_not_solved",
-                           "optimize_for_reuse"]
-        
-        #self._condition_id_counter = itertools.count()
-
-        # preliminary checks
-        #check_packages_exist(specs)
-
-        # driver is used by all the functions below to add facts and
-        # rules to generate an ASP program.
-
-        def print_attr(name):
-            self.gen.h2("Final state: " + name)
-            elements = extract_functions(model, name)
-
-            [ self.gen.out.write(str(e) + ".\n") for e in elements ]
-            
-        filename = "model" + str(idx) + ".lp"
-        self.gen.out = open(filename, 'w')
-
-        self.gen.h1("General predicates")
-        [print_attr(p) for p in general_predicates]
-
-        self.gen.h1("Weight predicates")
-        #print(weight_predicates)
-        #[print(p) for p in weight_predicates]
-        [print_attr(p) for p in weight_predicates]
-
-        self.gen.h1("Mismatch and variant predicates")
-        [print_attr(p) for p in rest_predicates]
-
-        if idx == 0:
-            print("model ", idx, ": ", min_cost)
         
     def setup(self, driver, specs, reuse=None):
         """Generate an ASP program with relevant constraints for specs.
@@ -2641,14 +2558,14 @@ class Solver(object):
         return reusable_specs
 
     def solve(
-        self,
-        specs,
-        out=None,
-        timers=False,
-        stats=False,
-        tests=False,
-        setup_only=False, #true if the user asks for --show asp
-        depth=1
+            self,
+            specs,
+            out=None,
+            timers=False,
+            stats=False,
+            tests=False,
+            setup_only=False, #true if the user asks for --show asp
+            depth=1,
     ):
         """
         Arguments:
@@ -2661,7 +2578,6 @@ class Solver(object):
             packages (defaults to False: do not concretize test dependencies).
           setup_only (bool): if True, stop after setup and don't solve (default False).
         """
-        
         # Check upfront that the variants are admissible
         reusable_specs = self._check_input_and_extract_concrete_specs(specs)
         reusable_specs.extend(self._reusable_specs())

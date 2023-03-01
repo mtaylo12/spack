@@ -37,7 +37,7 @@ def setup_parser(subparser):
         default="1",
         help="specify DAG depth for optimization"
     )
-
+        
     subparser.add_argument(
         "--show",
         action="store",
@@ -205,10 +205,10 @@ def solve(parser, args):
     output = sys.stdout if "asp" in show else None
     setup_only = set(show) == {"asp"}
     unify = spack.config.get("concretizer:unify")
+
     if unify != "when_possible":
         # set up solver parameters
         # Note: reuse and other concretizer prefs are passed as configuration
-
         result = solver.solve(
             specs,
             out=output,
@@ -217,7 +217,7 @@ def solve(parser, args):
             setup_only=setup_only,
             depth=depth
         )
-        if not setup_only :
+        if not setup_only:
             _process_result(result, show, required_format, kwargs)
     else:
         for idx, result in enumerate(

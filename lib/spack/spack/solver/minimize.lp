@@ -14,6 +14,7 @@
 
 #defined requirement_has_weight/2.
 #defined requirement_weight/2.
+
 %-----------------------------------------------------------------
 % Constants necessary for final state
 %-----------------------------------------------------------------
@@ -27,6 +28,25 @@
 opt_criterion(solve_prio, "fixed", "number of input specs not concretized").
 #minimize{ 0@solve_prio: #true }.
 #minimize{ 1@solve_prio,ID : literal_not_solved(ID) }.
+
+%-----------------------------------------------------------------
+% Depth recomputation
+%-----------------------------------------------------------------
+% roots have depth 0.
+depth(Package, 0) :- attr("root", Package).
+
+% other nodes' depth is the minimum depth of any dependent plus one.    
+depth(Package, N + 1) :-
+		N = #min{
+						D: depends_on(Dependent, Package),
+						depth(Dependent, D),
+						D < max_depth;
+						max_depth - 1
+				},
+		N = 0..max_depth - 1,
+		attr("node", Package).       
+
+
 
 
 %-----------------------------------------------------------------
