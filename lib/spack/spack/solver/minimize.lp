@@ -1,4 +1,4 @@
-#defined literal_not_solved/1.
+
 
 #defined error/2.
 #defined error/3.
@@ -7,14 +7,23 @@
 #defined error/6.
 #defined error/7.
 
+#defined literal_not_solved/1.
+
 #defined compiler_mismatch/2.
 #defined node_target_mismatch/2.
 #defined node_os_mismatch/2.
 #defined compiler_mismatch_required/2.
+#defined build/1.
 
-#defined requirement_has_weight/2.
+#defined provider_weight/3.
+#defined variant_default_not_used/3.
+%% #defined package_target_weight/3.
+#defined variant_default_value/3.
+
+
+%% #defined requirement_has_weight/2.
 #defined requirement_weight/2.
-
+#defined variant_not_default/3. 
 %-----------------------------------------------------------------
 % Constants necessary for final state
 %-----------------------------------------------------------------
@@ -28,25 +37,6 @@
 opt_criterion(solve_prio, "fixed", "number of input specs not concretized").
 #minimize{ 0@solve_prio: #true }.
 #minimize{ 1@solve_prio,ID : literal_not_solved(ID) }.
-
-%-----------------------------------------------------------------
-% Depth recomputation
-%-----------------------------------------------------------------
-% roots have depth 0.
-depth(Package, 0) :- attr("root", Package).
-
-% other nodes' depth is the minimum depth of any dependent plus one.    
-depth(Package, N + 1) :-
-		N = #min{
-						D: depends_on(Dependent, Package),
-						depth(Dependent, D),
-						D < max_depth;
-						max_depth - 1
-				},
-		N = 0..max_depth - 1,
-		attr("node", Package).       
-
-
 
 
 %-----------------------------------------------------------------
@@ -202,29 +192,8 @@ opt_criterion(5, "leveled", "non-preferred targets").
       depth(Package, D)
 }.
 
-																																																																																																									 
-%#show attr/3.
-%#show attr/4.
-
-%#show error/2.
-%#show error/3.
-%#show error/4.
-%#show error/5.
-%#show error/6.
-%#show error/7.
-
-% depths
-%#show depth/2.
-%#show parent_depth/2.
-
-% debug
-
-%#show depends_on/2.
-
-%node(Package) :- attr("node", Package).
-%#show node/1.
-
-%version(Package, Version) :- attr("version", Package, Version).
-%#show version/2.
 
 
+
+#show opt_criterion/3.
+#show depth/2.

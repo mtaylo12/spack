@@ -28,10 +28,10 @@
 #show error/6.
 #show error/7.
 
+#show depth/2. %not used in recomputation, just used for debugging
+
 #show internal_error/1.
 #show optimize_for_reuse/0. %this is necessary for requirement weight counting
-
-#show depth/2.
 
 #show version_weight/2.
 #show build/1.
@@ -55,11 +55,20 @@
 
 #show compiler_mismatch_required/2.
 
+#show version_declared/3.
+#show package_target_weight/3.
+#show variant_default_value/3.
+
+
 %#show parent_depth/2.
 
 % debug
+#show dependency_condition/3.
+#show dependency_type/2.
+#show condition_holds/1.
+#show external/1.
+#show virtual/1.
 
-%#show depends_on/2.
 
 %node(Package) :- attr("node", Package).
 %#show node/1.

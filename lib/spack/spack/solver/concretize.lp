@@ -1144,6 +1144,7 @@ depth(Package, N + 1) :-
         max_depth - 1
     },
     N = 0..max_depth - 1,
+		not attr("root", Package),
     attr("node", Package).
 
 
