@@ -745,11 +745,13 @@ class PyclingoDriver(object):
             path = os.path.join(parent_dir, "concretize.lp")
             parse_files([path], visit)
 
+        
         # If we're only doing setup, just return an empty solve result
         if output.setup_only:
             return Result(specs), None, None
 
         # Load the file itself
+
         
         self.control.load(os.path.join(parent_dir, "concretize.lp"))
         self.control.load(os.path.join(parent_dir, "os_compatibility.lp"))
@@ -797,8 +799,6 @@ class PyclingoDriver(object):
             builder = SpecBuilder(specs, hash_lookup=setup.reusable_and_possible)
             min_cost, priorities, best_model = min(models)
 
-            
-            
             
             # first check for errors
             error_args = [fn.args for fn in extract_functions(best_model, "error")]
@@ -2514,13 +2514,16 @@ class Solver(object):
 
     """
 
-    def __init__(self):
+    def __init__(self, reuse=None):
         self.driver = PyclingoDriver()
 
         # These properties are settable via spack configuration, and overridable
         # by setting them directly as properties.
-        self.reuse = spack.config.get("concretizer:reuse", False)
-
+        if reuse == None:
+            self.reuse = spack.config.get("concretizer:reuse", False)
+        else:
+            self.reuse = reuse
+            
     @staticmethod
     def _check_input_and_extract_concrete_specs(specs):
         reusable = []
@@ -2583,7 +2586,7 @@ class Solver(object):
         reusable_specs.extend(self._reusable_specs())
         setup = SpackSolverSetup(tests=tests)
         output = OutputConfiguration(timers=timers, stats=stats, out=out, setup_only=setup_only)
-        
+
         result, _, _ = self.driver.solve(setup, specs, reuse=reusable_specs, output=output,depth=depth)
         return result
 

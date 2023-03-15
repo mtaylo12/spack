@@ -101,6 +101,8 @@ class TempResult(object):
         self.node_depths = {} #dict of all nodes and static depths
         self.spec_trees = {}
 
+        self.true_max = 0
+        
     def truncate_weights(self):
         #get actual max depth
         max_depth = max(self.node_depths.values())
@@ -141,7 +143,7 @@ class TempResult(object):
     def spectree(self, root):
         
         r = SpecNode(root)
-
+        
         #breadth first traversal of depends_on tree        
         parents = [r]
         self.node_depths[r.name] = r.depth
@@ -155,6 +157,7 @@ class TempResult(object):
                     self.node_depths[child.name] = child.depth
             parents.remove(p)
 
+        self.true_max = max(self.node_depths.values())
         return r
 
     def new_depth_rules(self, newd):
@@ -243,9 +246,9 @@ class DAGCompare(object):
         specs = self.specs
         
         #setup_only to check for errors
-        solver = asp.Solver()
+        solver = asp.Solver(reuse=False)
         solver.solve(specs, setup_only=True)
-
+        
         #solve with specific max_depth and detailed display
         driver = solver.driver
         driver.control.load(os.path.join(self.parent_dir, "concretize.lp"))
@@ -313,11 +316,8 @@ class DAGCompare(object):
         #add result predicates to control object
         result.add_to_control(driver.control, new_depth)
 
-        driver.control.add("depth", [], "#const max_depth = " + str(new_depth) + ".")
-        
-        
+        driver.control.add("depth", [], "#const max_depth = " + str(new_depth) + ".")        
         driver.control.ground([("base", []), ("depth",[]), ("attr", []), ("rule",[])])
-        
         
         models = []
         cores = []
@@ -333,85 +333,48 @@ class DAGCompare(object):
         }
      
         solve_res = driver.control.solve(**solve_kwargs)
-        
-        
-            
+           
         assert solve_res.satisfiable, "Reweight failed - no solutions found."
         assert len(models) == 1, "Reweight failed - more than one solution found."
-
-
         
         model = min(sorted(models))
-        
         (weights, symbols) = model
 
         result = TempResult()
         result.symbols = symbols
-        #result.print_program("reweight_program.lp")
 
         criteria = asp.extract_functions(symbols, "opt_criterion")
 
         l1 = len(weights)
         l2 = len(self.at_depth_results[new_depth].weights)
 
-       
         if (l1!=l2):
             print("Reweight failed - wrong length weight vector.")
 
-            
-            
         return weights
 
     def setup_all(self):
         self.initial_results = (self.initial_solve(1, 10))
+    
         
         for d in self.depths:
-            self.at_depth_results[d] =  self.initial_solve(d, 1)[0] 
-            self.reweights[d] = [self.reweight_solve(r, d) for r in self.initial_results]
-
-
-    # def plot_comparison(self, result, depth, depth_specific):
-    #     """Plot line for best model at depth in comparison with line for each initial model reweighted"""
-    #     new_weights = reweight_solve(result, depth)
-    #     nweights = len(new_weights)
-
-    #     x = numpy.arange(1, nweights + 1)
-    #     comp_weights = depth_specific.weights
-
-    #     plt.title("comparison at depth=" + str(depth))
-    #     plt.plot(x,new_weights)
-    #     plt.plot(x,comp_weights)
+            ad = self.at_depth_results[d] =  self.initial_solve(d, 1)[0]
+            if d <= ad.true_max:
+                self.reweights[d] = [self.reweight_solve(r, d) for r in self.initial_results]
+                print("Setup complete at depth", d)
+            else:
+                print("Setup stopped - true max depth reached.")
+                break
         
-    #     plt.legend(["regenerated", "true depth"])
-    #     plt.show()
-    
-    # def plot_norm(results, deep_results, depth):
-    #     assert depth > 1, "cannot compare with depth less than 2."
-    
-    #     d = deep_results[depth-self.min_depth]
-        
-    #     deep_weights = d.weights
-    #     x = numpy.arange(1, len(deep_weights) + 1)
-    #     plt.title("comparison at depth=" + str(depth))
-
-    #     dweights = numpy.array(deep_weights)
-        
-    #     for r in results:
-    #         new_weights = numpy.array(reweight_solve(r, depth))
-    #         comparison = new_weights - dweights
-    #         plt.plot(x, comparison)
-
-    #     plt.legend(["model"+str(i) for i in range(0, len(results))])
-    #     plt.show()
-
 
     def rank_at_depth(self, depth):
         """Rank all initial results at the given depth according to lexicographical order."""
-        assert depth in self.depths, "invalid depth request"
+        assert depth in self.reweights, "invalid depth request"
+
         weights = []
         
         for idx, r in enumerate(self.initial_results):
-            new_weights = self.reweights[depth][1][idx]
+            new_weights = self.reweights[depth][idx]
             weights.append((idx, new_weights))
 
         sorted_weights = sorted(weights, key=lambda l : tuple(l[1]))
@@ -419,21 +382,22 @@ class DAGCompare(object):
         ordering = [x[0] for x in sorted_weights]
         return ordering
 
-    def rank(self):
-        for d in self.depths:
-            print((d, self.rank_at_depth(d)))
+     # def rank(self):
+     #        print((d, self.rank_at_depth(d)))
 
     def plot_compare_best(self, d):
 
         best_model_idx = self.rank_at_depth(d)[0]
-        best_model_weights = self.reweights[d - self.min_depth][1][best_model_idx]
-
+        best_model_weights = numpy.array(self.reweights[d][best_model_idx])
+        at_depth_weights = numpy.array(self.at_depth_results[d].weights)
+        
         x = numpy.arange(1, len(best_model_weights) + 1)
 
-        plt.title("Best model comparison at depth " + str(d))
+        plt.title("Best model comparison at depth " + str(d) + " (max error = " + str(max(best_model_weights - at_depth_weights)))
         plt.plot(x,best_model_weights)
-        plt.plot(x,self.at_depth_results[d - self.min_depth].weights)
-        plt.legend(["initial model #" + str(best_model_idx), "model at depth"])
+        plt.plot(x,at_depth_weights)
+        plt.legend(["model" + str(best_model_idx), "model at depth"])
+
         plt.show()
      
     def first_deviation(self, model, d):
@@ -449,92 +413,3 @@ class DAGCompare(object):
             
         return None
     
-    # def sorted_weights(self, init_res, depth):
-    #     weights_at_depth = []
-    #     for idx, r in enumeinit_res:
-    #         w = reweights(depth)       
-    #         weights_at_depth.append((r.ranking, w))
-
-    #     return sorted(weights_at_depth, key=lambda l : tuple(l[1]))
-
-
-    # def sort_all(self,init_res):
-    #     depths = self.depths  
-    #     all_orderings = []
-    #     for depth in depths:
-    #         ordering = []
-    #         for x in sorted_weights(self.initial_results, depth):
-    #             ordering.append(x[0])
-    #             all_orderings.append((depth, ordering))
-
-    #     return all_orderings
-
-    
-    
-# depths = range(min_depth, 3)
-# initial_results = (initial_solve(specs, 1, 10))
-# depth_specific_results = [initial_solve(specs, d, 1)[0] for d in depths]
-
-# ordering = sort_all(initial_results, depths)
-# initial_results[0].print_program()
-
-
-
-# for (depth, order) in ordering:
-#     best_model_key = order[0]
-
-#     if depth == 1:
-#         assert best_model_key == 0
-
-#     print("At depth:", depth, "model #", best_model_key, "performs best.")
-    
-    
-#     #build rank order based on differences from depth specific solution
-#     differences = []    
-#     best_weight = []
-#     old_weights = depth_specific_results[depth-min_depth].weights
-    
-#     for idx, res in enumerate(initial_results):
-#         new_weights = reweight_solve(res, depth)
-
-#         if idx == best_model_key:
-#             best_weight = (idx, new_weights)
-        
-#         difference = numpy.array(new_weights) - numpy.array(old_weights)
-#         differences.append((idx, difference))
-
-
-#     sorted_differences = sorted(differences, key=lambda l : tuple(l[1]))
-#     ranked_differences = (depth, [x[0] for x in sorted_differences])
-
-#     distance_norm = (depth, [numpy.linalg.norm(x[1]) for x in sorted_differences])
-#     print("ranked differences: ", ranked_differences)
-#     print("distance from dss:  ", distance_norm)
-
-#     x = numpy.arange(1, len(best_weight[1]) + 1)
-#     plt.plot(x, numpy.array(best_weight[1]))
-#     plt.plot(x, numpy.array(old_weights))
-
-#     plt.show()
-    
-#     #distances = [(i, distance(initial_results[i], depth_specific_results[depth-2], depth)) for i in range(0, len(initial_results))]
-#     #print("distances from depth specific result:")
-#     #print(distances)
-#     #print(distance(initial_results[best_model_keyA], depth_specific_results[depth-2], depth))
-#     #print(distance(initial_results[1], depth_specific_results[depth-2], depth))
-    
-#     #print("orig - at depth: ", numpy.array(reweight_solve(initial_results[best_model_key], depth)) -  numpy.array(depth_specific_results[depth-2].weights))
-#     #print("mod0 - at depth: ", numpy.array(reweight_solve(initial_results[0], depth)) -  numpy.array(depth_specific_results[depth-2].weights))
-#     #dresult = depth_specific_results[depth-2]
-
-
-    
-
-
-
-
-
-
-
-
-

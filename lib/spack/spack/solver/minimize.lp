@@ -80,7 +80,7 @@ opt_criterion(solve_prio, "fixed", "number of input specs not concretized").
 % Try hard to reuse installed packages (i.e., minimize the number built)
 opt_criterion(build_prio, "fixed", "number of packages to build (vs. reuse)").
 #minimize { 1@build_prio,Package : build(Package), optimize_for_reuse() }.
-%#defined optimize_for_reuse/0.
+#defined optimize_for_reuse/0.
 
 
 % A condition group specifies one or more specs that must be satisfied.
