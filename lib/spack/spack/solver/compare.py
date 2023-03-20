@@ -365,8 +365,12 @@ class DAGCompare(object):
             else:
                 print("Setup stopped - true max depth reached.")
                 break
-        
-
+            
+    def setup_at_depth(self, d):
+        self.initial_results = (self.initial_solve(1, 10))
+        ad = self.at_depth_results[d] = self.initial_solve(d,1)[0]
+        self.reweights[d] = [self.reweight_solve(r,d) for r in self.initial_results]
+    
     def rank_at_depth(self, depth):
         """Rank all initial results at the given depth according to lexicographical order."""
         assert depth in self.reweights, "invalid depth request"
@@ -401,11 +405,10 @@ class DAGCompare(object):
         plt.show()
      
     def first_deviation(self, model, d):
+        """Get index and magnitude of first deviation from the result at depth. Used for visualization and comparison summaries."""
+        at_depth = self.at_depth_results[d].weights
 
-        at_depth = self.at_depth_results[d - self.min_depth].weights
-        
-
-        diff = numpy.array(self.reweights[d - self.min_depth][1][model]) - numpy.array(at_depth)
+        diff = numpy.array(self.reweights[d][model]) - numpy.array(at_depth)
 
         for index, ele in enumerate(diff):
             if ele != 0:
