@@ -1186,11 +1186,11 @@ depth(Package, N + 1) :-
 % "leveled" criteria sum into a bucket per depth in the graph, per build priority
 #minimize{
     0@(((max_depth - D) * depth_offset) + N + build_prio)
-    : opt_criterion(N, "leveled", _), depth(_, D)
+    : opt_criterion(N, "leveled", _), D=0..max_depth
 }.
 #minimize{
     0@(((max_depth - D) * depth_offset) + N)
-    : opt_criterion(N, "leveled", _), depth(_, D)
+    : opt_criterion(N, "leveled", _), D=0..max_depth
 }.
 
 % Try hard to reuse installed packages (i.e., minimize the number built)
