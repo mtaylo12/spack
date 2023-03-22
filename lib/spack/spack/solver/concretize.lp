@@ -1185,11 +1185,11 @@ depth(Package, N + 1) :-
 
 % "leveled" criteria sum into a bucket per depth in the graph, per build priority
 #minimize{
-    0@(((max_depth - D - 1) * depth_offset) + N + build_prio)
+    0@(((max_depth - D) * depth_offset) + N + build_prio)
     : opt_criterion(N, "leveled", _), depth(_, D)
 }.
 #minimize{
-    0@(((max_depth - D - 1) * depth_offset) + N)
+    0@(((max_depth - D) * depth_offset) + N)
     : opt_criterion(N, "leveled", _), depth(_, D)
 }.
 
@@ -1204,7 +1204,7 @@ opt_criterion(build_prio, "fixed", "number of packages to build (vs. reuse)").
 % minimize the weights.
 opt_criterion(65, "leveled", "requirement weight").
 #minimize{
-    Weight@(65 + ((max_depth - D - 1) * depth_offset) + Priority), Package
+    Weight@(65 + ((max_depth - D) * depth_offset) + Priority), Package
     : requirement_weight(Package, Weight),
       build_priority(Package, Priority),
       depth(Package, D)
@@ -1212,7 +1212,7 @@ opt_criterion(65, "leveled", "requirement weight").
 
 opt_criterion(60, "leveled", "deprecated versions used").
 #minimize{
-    1@(60 + ((max_depth - D - 1) * depth_offset) + Priority), Package
+    1@(60 + ((max_depth - D ) * depth_offset) + Priority), Package
     : attr("deprecated", Package, _),
       build_priority(Package, Priority),
       depth(Package, D)
@@ -1220,7 +1220,7 @@ opt_criterion(60, "leveled", "deprecated versions used").
 
 opt_criterion(55, "leveled", "version badness").
 #minimize{
-    Weight@(55 + ((max_depth - D - 1) * depth_offset) + Priority), Package
+    Weight@(55 + ((max_depth - D) * depth_offset) + Priority), Package
     : version_weight(Package, Weight),
       build_priority(Package, Priority),
       depth(Package, D)
@@ -1228,7 +1228,7 @@ opt_criterion(55, "leveled", "version badness").
 
 opt_criterion(50, "leveled", "number of non-default variants").
 #minimize{
-    1@(50 + ((max_depth - D - 1) * depth_offset) + Priority), Package, Variant, Value
+    1@(50 + ((max_depth - D ) * depth_offset) + Priority), Package, Variant, Value
     : variant_not_default(Package, Variant, Value),
       build_priority(Package, Priority),
       depth(Package, D)
@@ -1236,7 +1236,7 @@ opt_criterion(50, "leveled", "number of non-default variants").
 
 opt_criterion(45, "leveled", "preferred providers").
 #minimize{
-    Weight@(45 + ((max_depth - D - 1) * depth_offset) + Priority), Provider, Virtual
+    Weight@(45 + ((max_depth - D) * depth_offset) + Priority), Provider, Virtual
     : provider_weight(Provider, Virtual, Weight),
       build_priority(Provider, Priority),
       depth(Package, D)
@@ -1244,7 +1244,7 @@ opt_criterion(45, "leveled", "preferred providers").
 
 opt_criterion(40, "leveled", "default values of variants not being used").
 #minimize{
-    1@(40 + ((max_depth - D - 1) * depth_offset) + Priority), Package, Variant, Value
+    1@(40 + ((max_depth - D ) * depth_offset) + Priority), Package, Variant, Value
     : variant_default_not_used(Package, Variant, Value),
       build_priority(Package, Priority),
       depth(Package, D)
@@ -1252,7 +1252,7 @@ opt_criterion(40, "leveled", "default values of variants not being used").
 
 opt_criterion(35, "leveled", "compiler mismatches (not from CLI)").
 #minimize{
-    1@(35 + ((max_depth - D - 1) * depth_offset) + Priority), Dependent, Package
+    1@(35 + ((max_depth - D ) * depth_offset) + Priority), Dependent, Package
     : compiler_mismatch(Dependent, Package),
       build_priority(Package, Priority),
       depth(Package, D)
@@ -1260,7 +1260,7 @@ opt_criterion(35, "leveled", "compiler mismatches (not from CLI)").
 
 opt_criterion(30, "leveled", "compiler mismatches (from CLI)").
 #minimize{
-    1@(30 + ((max_depth - D - 1) * depth_offset) + Priority), Dependent, Package
+    1@(30 + ((max_depth - D ) * depth_offset) + Priority), Dependent, Package
     : compiler_mismatch_required(Dependent, Package),
       build_priority(Package, Priority),
       depth(Package, D)
@@ -1268,7 +1268,7 @@ opt_criterion(30, "leveled", "compiler mismatches (from CLI)").
 
 opt_criterion(25, "leveled", "OS mismatches").
 #minimize{
-    1@(25 + ((max_depth - D - 1) * depth_offset) + Priority), Dependent, Package
+    1@(25 + ((max_depth - D ) * depth_offset) + Priority), Dependent, Package
     : node_os_mismatch(Dependent, Package),
       build_priority(Package, Priority),
       depth(Package, D)
@@ -1276,7 +1276,7 @@ opt_criterion(25, "leveled", "OS mismatches").
 
 opt_criterion(20, "leveled", "non-preferred compilers").
 #minimize{
-    Weight@(20 + ((max_depth - D - 1) * depth_offset) + Priority), Package
+    Weight@(20 + ((max_depth - D ) * depth_offset) + Priority), Package
     : compiler_weight(Package, Weight),
       build_priority(Package, Priority),
       depth(Package, D)
@@ -1284,7 +1284,7 @@ opt_criterion(20, "leveled", "non-preferred compilers").
 
 opt_criterion(15, "leveled", "non-preferred OS's").
 #minimize{
-    Weight@(15 + ((max_depth - D - 1) * depth_offset) + Priority), Package
+    Weight@(15 + ((max_depth - D ) * depth_offset) + Priority), Package
     : node_os_weight(Package, Weight),
       build_priority(Package, Priority),
       depth(Package, D)
@@ -1294,7 +1294,7 @@ opt_criterion(15, "leveled", "non-preferred OS's").
 % to select the preferred target.
 opt_criterion(10, "leveled", "target mismatches").
 #minimize{
-    1@(10 + ((max_depth - D - 1) * depth_offset) + Priority), Dependent, Package
+    1@(10 + ((max_depth - D ) * depth_offset) + Priority), Dependent, Package
     : node_target_mismatch(Dependent, Package),
       build_priority(Package, Priority),
       depth(Package, D)
@@ -1302,7 +1302,7 @@ opt_criterion(10, "leveled", "target mismatches").
 
 opt_criterion(5, "leveled", "non-preferred targets").
 #minimize{
-    Weight@(5 + ((max_depth - D - 1) * depth_offset) + Priority), Package
+    Weight@(5 + ((max_depth - D) * depth_offset) + Priority), Package
     : node_target_weight(Package, Weight),
       build_priority(Package, Priority),
       depth(Package, D)
