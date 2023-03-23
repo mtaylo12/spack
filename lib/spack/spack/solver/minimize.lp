@@ -19,7 +19,7 @@
 #defined variant_default_not_used/3.
 %% #defined package_target_weight/3.
 #defined variant_default_value/3.
-
+#defined version_weight/2.
 
 %% #defined requirement_has_weight/2.
 #defined requirement_weight/2.

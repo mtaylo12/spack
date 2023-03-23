@@ -246,7 +246,7 @@ class DAGCompare(object):
         specs = self.specs
         
         #setup_only to check for errors
-        solver = asp.Solver(reuse=False)
+        solver = asp.Solver(reuse=True)
         solver.solve(specs, setup_only=True)
         
         #solve with specific max_depth and detailed display
@@ -348,8 +348,7 @@ class DAGCompare(object):
         l1 = len(weights)
         l2 = len(self.at_depth_results[new_depth].weights)
 
-        if (l1!=l2):
-            print("Reweight failed - wrong length weight vector.")
+        assert l1==l2, "Reweight failed - wrong length weight vector."
 
         return weights
 
