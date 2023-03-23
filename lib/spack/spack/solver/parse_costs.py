@@ -42,6 +42,8 @@ def parse_old(costs, max_depth):
   assert costs==[]
 
 def parse(costs, max_depth):
+  """Parse under the assumption that costs are ordered as follows: errors, number of specs not concretized, all build costs, number of specs to build vs reuse, all reuse costs."""
+  
   error_costs = costs[:4]              #4 determined slots at priorities 10,000,000 through 10,000,003
   num_not_concretized = costs[4]       #at priority 1,000,000
 

@@ -233,20 +233,18 @@ class DAGCompare(object):
         self.specs = spack.cmd.parse_specs(specs)
         self.parent_dir = "/Users/mayataylor/spack/lib/spack/spack/solver"
         self.min_depth = 1
-        self.depths = [1,2,3,4,5,6,7,8,9,10]
 
-        # defined in setup_all
         self.initial_results = []         # list of the top TempResult objects at depth 1
         self.at_depth_results = {}        # dictionary of best TempResult for at every depth in self.depths
         self.reweights = {}               # dictionary of depth, list of weights for each initial result
 
 
-    def initial_solve(self, depth, count):
+    def initial_solve(self, depth, count, reuse):
         """Run solve setup for the given specs to check for errors. Then solve fully with modified display and max_depth to generate TempResult objects."""
         specs = self.specs
         
         #setup_only to check for errors
-        solver = asp.Solver(reuse=True)
+        solver = asp.Solver(reuse=reuse)
         solver.solve(specs, setup_only=True)
         
         #solve with specific max_depth and detailed display
@@ -352,22 +350,10 @@ class DAGCompare(object):
 
         return weights
 
-    def setup_all(self):
-        self.initial_results = (self.initial_solve(1, 10))
-    
-        
-        for d in self.depths:
-            ad = self.at_depth_results[d] =  self.initial_solve(d, 1)[0]
-            if d <= ad.true_max:
-                self.reweights[d] = [self.reweight_solve(r, d) for r in self.initial_results]
-                print("Setup complete at depth", d)
-            else:
-                print("Setup stopped - true max depth reached.")
-                break
             
-    def setup_at_depth(self, d):
-        self.initial_results = (self.initial_solve(1, 10))
-        ad = self.at_depth_results[d] = self.initial_solve(d,1)[0]
+    def setup_at_depth(self, d, reuse=True):
+        self.initial_results = (self.initial_solve(1, 10, reuse))
+        ad = self.at_depth_results[d] = self.initial_solve(d,1,reuse)[0]
         self.reweights[d] = [self.reweight_solve(r,d) for r in self.initial_results]
     
     def rank_at_depth(self, depth):
