@@ -29,10 +29,7 @@ reweight_predicates = ["literal_not_solved",
                        "node_os_weight",
                        "node_target_mismatch",
                        "node_target_weight",
-                       #testing
-                       "depends_on",
-                       "version_declared",
-                       "internal_error"]
+                       ]
 
 debug_predicates = ["build_priority",
               "node_target_weight",
@@ -60,10 +57,10 @@ debug_predicates = ["build_priority",
               "build",
               "error",
               "internal_error",
-              "opt_criterion", #necessarY?
               ]
 
 class SpecNode(object):
+    """Node object for spec tree, useful basically only for debugging (the print_tree output should match the spec from spack solve."""
     def __init__(self, name, parent=None):
         self.name = name
         self.children = []
@@ -84,85 +81,47 @@ class SpecNode(object):
         
             
 class TempResult(object):
-    """Temporary result of a solve."""
+    """Temporary result of a solve. Stores necessary rules and weights for reweighting as well as tree information."""
 
     def __init__(self):
         self.weights = []
         self.depth = None
         self.symbols = None
-        self.ranking = None
-        
+                
         self.attr_rules = []
         self.reweight_rules = []
-        self.depth_rules = []
+        self.depth_rules = [] #TODO: currently only used for debugging purposes
         self.depends_on = []
         
-        self.specs = [] #list of root spec names as strings
+        self.roots = [] #list of root spec names as strings
         self.node_depths = {} #dict of all nodes and static depths
-        self.spec_trees = {}
+        self.root_nodes = []
+        
+    def setup_spectree(self, root):
+        """Complete breadth first traversal of the tree given by the set of depends_on predicates belonging to self. Build a tree of SpecNode objects based on these rules. Used to regenerate depths at new max depth. The argument root should be the string name of the spec."""
 
-        self.true_max = 0
-        
-    def truncate_weights(self):
-        #get actual max depth
-        max_depth = max(self.node_depths.values())
-        print("truncating to actual max depth:", max_depth)
-
-        costs = self.weights
-        opt_criteria = asp.extract_functions(self.symbols, "opt_criterion")
-
-        #borrowed from asp.build_criteria_names
-        # ensure names of all criteria are unique                                                                                                                                                                                                           
-        names = {criterion.args[0] for criterion in opt_criteria}
-        assert len(names) == len(opt_criteria), "names of optimization criteria must be unique"
-        
-        # split opt criteria into two lists
-        fixed_criteria = [oc for oc in opt_criteria if oc.args[1] == "fixed"]
-        leveled_criteria = [oc for oc in opt_criteria if oc.args[1] == "leveled"]
-        
-        # first non-error criterion                                                                                                                                                                                                                               
-        solve_index = max_error_priority + 1
-    
-        # compute without needing max_depth from solve
-        max_leveled_costs = (len(costs) - max_error_priority - 3) / 2
-        assert max_leveled_costs * 2 == len(costs) - max_error_priority - 3
-        assert max_leveled_costs % len(leveled_criteria) == 0
-        max_leveled_costs = int(max_leveled_costs)
-        
-        n_leveled_costs = len(leveled_criteria) * (max_depth + 1)
-        
-        build_index = solve_index + 1 + max_leveled_costs
-        fixed_costs = [costs[solve_index], costs[build_index]]
-        
-        build_costs = costs[solve_index + 1 : solve_index + 1 + n_leveled_costs]
-        reuse_costs = costs[build_index + 1 : build_index + 1 + n_leveled_costs]
-        assert len(build_costs) == len(reuse_costs) == n_leveled_costs
-
-        return build_costs + reuse_costs
-        
-    def spectree(self, root):
-        
         r = SpecNode(root)
-        
+
         #breadth first traversal of depends_on tree        
         parents = [r]
         self.node_depths[r.name] = r.depth
         while parents != []:
             p = parents[0]
+        
             for afun in self.depends_on:
-                #second condition removes duplicates and keeps copy at the highest level
+                #second condition removes duplicates and keeps copy at minimum depth
                 if afun.args[0] == p.name and afun.args[1] not in self.node_depths:
                     child = SpecNode(afun.args[1], p)
                     parents.append(child)
                     self.node_depths[child.name] = child.depth
             parents.remove(p)
 
-        self.true_max = max(self.node_depths.values())
-        return r
+        self.root_nodes.append(r)
 
     def new_depth_rules(self, newd):
+        """Build new depth/2 rules from the spec tree. Uses newd as the new max depth. Must be run only after setup."""
+                
         rules = []
-
         for node, depth in self.node_depths.items():
             if depth > newd:
                 depth = newd
@@ -170,15 +129,19 @@ class TempResult(object):
 
         return rules
     
-    def setup(self, cost, symbols, depth, ranking):
-
+    def setup(self,specs, cost, symbols, depth, ranking):
+        """Setup the TempResult object after its corresponding initial solve is done. Basically just storing all the information that might be necessary later on for a reweight or a comparison."""
         self.weights = cost
         self.depth = depth
-        self.ranking = ranking
         self.symbols = symbols
 
         self.attr_rules = asp.extract_functions(symbols, "attr")
 
+        for a in self.attr_rules:
+            if a.args[0] == "root":
+                self.roots.append(a.args[1])
+
+        
         #rules for reweighting are in global list but must also include attr
         self.reweight_rules = [str(e) + "." for e in self.attr_rules]
         for p in reweight_predicates:
@@ -186,6 +149,7 @@ class TempResult(object):
                 self.reweight_rules.append(str(e) + ".")
 
         #initial depth rules, used for debugging
+        #TODO: still necessary?
         for d in ["depth"]:
             for e in asp.extract_functions(symbols, d):
                 self.depth_rules.append(str(e) + ".")
@@ -193,15 +157,11 @@ class TempResult(object):
         #used to regenerate depths statically
         self.depends_on = asp.extract_functions(symbols, "depends_on")
 
-        #TODO: this list already exists somewhere    
-        for a in self.attr_rules:
-            if a.args[0] == "root":
-                self.specs.append(a.args[1])
+        #setup spec tree for printing and for depth regeneration
+        for root in self.roots:
+            self.setup_spectree(str(root))
 
-        #generate spec tree for each spec (stored in dictionary by root)
-        for spec in self.specs:
-            self.spec_trees[spec] = self.spectree(spec)
-                
+                               
     def add_to_control(self, control, new_depth):
         """Add all necessary reweighting rules to control object."""
         for p in self.reweight_rules:
@@ -209,13 +169,8 @@ class TempResult(object):
 
         for d in self.new_depth_rules(new_depth):
             control.add("depth", [], d)
-        
 
-    def print_depths(self):
-        """Debugging tool to view initial depths."""
-        for d in self.depth_rules:
-            print(d)
-        
+    #TODO: still useful?
     def print_program(self, filename):
         """Debugging tool to view all rooles used for reweighting"""
         f = open(filename, 'w')
@@ -227,19 +182,19 @@ class TempResult(object):
         f.close()
 
         
-class DAGCompare(object):
+class Compare(object):
   
     def __init__(self, specs):
         self.specs = spack.cmd.parse_specs(specs)
-        self.parent_dir = "/Users/mayataylor/spack/lib/spack/spack/solver"
-        self.min_depth = 1
+        self.parent_dir = os.getcwd()
 
         self.initial_results = []         # list of the top TempResult objects at depth 1
         self.at_depth_results = {}        # dictionary of best TempResult for at every depth in self.depths
         self.reweights = {}               # dictionary of depth, list of weights for each initial result
 
+    
 
-    def initial_solve(self, depth, count, reuse):
+    def initial_solve(self, depth, count, reuse=True):
         """Run solve setup for the given specs to check for errors. Then solve fully with modified display and max_depth to generate TempResult objects."""
         specs = self.specs
         
@@ -282,22 +237,13 @@ class DAGCompare(object):
 
                 #create TempResult object 
                 res = TempResult()
-                res.setup(min_cost, curr_model, depth, idx)
+                res.setup(specs, min_cost, curr_model, depth, idx)
                 
-                results.append(res)
-
-    
-        
+                results.append(res)        
                 
         assert len(results) > 0, "No solutions generated for initial solve."
 
-        best_result = results[0]
-
-        
         return results
-
-
-    
 
     def reweight_solve(self, result, new_depth, filename=None):
         """Generate weights for the given result evaluated at the given depth."""
@@ -338,13 +284,8 @@ class DAGCompare(object):
         model = min(sorted(models))
         (weights, symbols) = model
 
-        result = TempResult()
-        result.symbols = symbols
-
-        criteria = asp.extract_functions(symbols, "opt_criterion")
-
         l1 = len(weights)
-        l2 = len(self.at_depth_results[new_depth].weights)
+        l2 = 6 + (1+new_depth)*26
 
         assert l1==l2, "Reweight failed - wrong length weight vector."
 
@@ -371,33 +312,4 @@ class DAGCompare(object):
         ordering = [x[0] for x in sorted_weights]
         return ordering
 
-     # def rank(self):
-     #        print((d, self.rank_at_depth(d)))
-
-    def plot_compare_best(self, d):
-
-        best_model_idx = self.rank_at_depth(d)[0]
-        best_model_weights = numpy.array(self.reweights[d][best_model_idx])
-        at_depth_weights = numpy.array(self.at_depth_results[d].weights)
         
-        x = numpy.arange(1, len(best_model_weights) + 1)
-
-        plt.title("Best model comparison at depth " + str(d) + " (max error = " + str(max(best_model_weights - at_depth_weights)))
-        plt.plot(x,best_model_weights)
-        plt.plot(x,at_depth_weights)
-        plt.legend(["model" + str(best_model_idx), "model at depth"])
-
-        plt.show()
-     
-    def first_deviation(self, model, d):
-        """Get index and magnitude of first deviation from the result at depth. Used for visualization and comparison summaries."""
-        at_depth = self.at_depth_results[d].weights
-
-        diff = numpy.array(self.reweights[d][model]) - numpy.array(at_depth)
-
-        for index, ele in enumerate(diff):
-            if ele != 0:
-                return (index, ele)
-            
-        return None
-    
