@@ -293,6 +293,7 @@ class Compare(object):
 
             
     def setup_at_depth(self, d, reuse=True):
+        """Solve at the given depth and at depth 1."""
         self.initial_results = (self.initial_solve(1, 10, reuse))
         ad = self.at_depth_results[d] = self.initial_solve(d,1,reuse)[0]
         self.reweights[d] = [self.reweight_solve(r,d) for r in self.initial_results]
