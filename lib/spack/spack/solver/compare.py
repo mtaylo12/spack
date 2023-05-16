@@ -11,8 +11,6 @@ import spack.cmd
 import matplotlib.pyplot as plt
 
 
-max_error_priority = 3
-
 reweight_predicates = ["literal_not_solved",
                        "build",
                        "optimize_for_reuse",
@@ -31,33 +29,6 @@ reweight_predicates = ["literal_not_solved",
                        "node_target_weight",
                        ]
 
-debug_predicates = ["build_priority",
-              "node_target_weight",
-              "node_target_mismatch",
-              "node_os_weight",
-              "compiler_weight",
-              "node_os_mismatch",
-              "compiler_mismatch_required",
-              "compiler_mismatch",
-              "variant_default_not_used",
-              "provider_weight",
-              "variant_not_default",
-              "version_weight",
-              "attr",
-              "requirement_weight",
-              "requirement_has_weight",
-              "opt_criterion",
-              "literal_not_solved",
-              "depth",
-              "optimize_for_reuse",
-              "depends_on",
-              "version_declared",
-              "package_target_weight",
-              "version_default_value",
-              "build",
-              "error",
-              "internal_error",
-              ]
 
 class SpecNode(object):
     """Node object for spec tree, useful basically only for debugging (the print_tree output should match the spec from spack solve."""
@@ -86,40 +57,48 @@ class TempResult(object):
     def __init__(self):
         self.weights = []
         self.depth = None
-        self.symbols = None
                 
         self.attr_rules = []
         self.reweight_rules = []
-        self.depth_rules = [] #TODO: currently only used for debugging purposes
         self.depends_on = []
         
         self.roots = [] #list of root spec names as strings
         self.node_depths = {} #dict of all nodes and static depths
-        self.root_nodes = []
-        
-    def setup_spectree(self, root):
-        """Complete breadth first traversal of the tree given by the set of depends_on predicates belonging to self. Build a tree of SpecNode objects based on these rules. Used to regenerate depths at new max depth. The argument root should be the string name of the spec."""
 
+    def setup_tree(self, root):
+        """Setup spec tree of SpecNode objects. Useful for debugging only."""
         r = SpecNode(root)
-
-        #breadth first traversal of depends_on tree        
-        parents = [r]
-        self.node_depths[r.name] = r.depth
-        while parents != []:
-            p = parents[0]
         
-            for afun in self.depends_on:
-                #second condition removes duplicates and keeps copy at minimum depth
-                if afun.args[0] == p.name and afun.args[1] not in self.node_depths:
+        parents = [r]
+        traversed = [root]
+        while parents != []:
+            p = parents.pop(0)
+            
+            for afun in self.depends_on:        
+                if afun.args[0] == p.name and afun.args[1] not in traversed:
                     child = SpecNode(afun.args[1], p)
+                    traversed.append(child.name)
                     parents.append(child)
-                    self.node_depths[child.name] = child.depth
-            parents.remove(p)
+        return r
+        
+    def setup_depths(self, root):
+        """Complete breadth first traversal of the tree given by the set of depends_on predicates belonging to self."""
 
-        self.root_nodes.append(r)
+        parents = [root]
+        self.node_depths[root] = 0
+ 
+        while parents:
+            p = parents.pop(0)
+            #iterate through all depends_on clauses
+            for afun in self.depends_on:
+                if afun.args[0] == p and afun.args[1] not in self.node_depths:
+                    child = afun.args[1]
+                    parents.append(child)
+                    self.node_depths[child] = self.node_depths[p] + 1
+
 
     def new_depth_rules(self, newd):
-        """Build new depth/2 rules from the spec tree. Uses newd as the new max depth. Must be run only after setup."""
+        """Build new depth/2 rules from the dictuionary node_depths generated during setup. Uses newd as the new max depth. Must be run only after setup."""
                 
         rules = []
         for node, depth in self.node_depths.items():
@@ -133,7 +112,6 @@ class TempResult(object):
         """Setup the TempResult object after its corresponding initial solve is done. Basically just storing all the information that might be necessary later on for a reweight or a comparison."""
         self.weights = cost
         self.depth = depth
-        self.symbols = symbols
 
         self.attr_rules = asp.extract_functions(symbols, "attr")
 
@@ -148,18 +126,12 @@ class TempResult(object):
             for e in asp.extract_functions(symbols, p):
                 self.reweight_rules.append(str(e) + ".")
 
-        #initial depth rules, used for debugging
-        #TODO: still necessary?
-        for d in ["depth"]:
-            for e in asp.extract_functions(symbols, d):
-                self.depth_rules.append(str(e) + ".")
-
         #used to regenerate depths statically
         self.depends_on = asp.extract_functions(symbols, "depends_on")
 
         #setup spec tree for printing and for depth regeneration
         for root in self.roots:
-            self.setup_spectree(str(root))
+            self.setup_depths(str(root))
 
                                
     def add_to_control(self, control, new_depth):
@@ -170,16 +142,6 @@ class TempResult(object):
         for d in self.new_depth_rules(new_depth):
             control.add("depth", [], d)
 
-    #TODO: still useful?
-    def print_program(self, filename):
-        """Debugging tool to view all rooles used for reweighting"""
-        f = open(filename, 'w')
-
-        for p in debug_predicates:
-            for a in asp.extract_functions(self.symbols, p):
-                f.write(str(a) + ".\n")
-
-        f.close()
 
         
 class Compare(object):
@@ -192,7 +154,6 @@ class Compare(object):
         self.at_depth_results = {}        # dictionary of best TempResult for at every depth in self.depths
         self.reweights = {}               # dictionary of depth, list of weights for each initial result
 
-    
 
     def initial_solve(self, depth, count, reuse=True):
         """Run solve setup for the given specs to check for errors. Then solve fully with modified display and max_depth to generate TempResult objects."""
@@ -293,11 +254,13 @@ class Compare(object):
 
             
     def setup_at_depth(self, d, reuse=True):
-        """Solve at the given depth and at depth 1."""
+        """Solve at the given depth and at depth 1. Compute reweights to compare."""
+        
         self.initial_results = (self.initial_solve(1, 10, reuse))
-        ad = self.at_depth_results[d] = self.initial_solve(d,1,reuse)[0]
+        self.at_depth_results[d] = self.initial_solve(d,1,reuse)[0]
         self.reweights[d] = [self.reweight_solve(r,d) for r in self.initial_results]
-    
+
+        
     def rank_at_depth(self, depth):
         """Rank all initial results at the given depth according to lexicographical order."""
         assert depth in self.reweights, "invalid depth request"
