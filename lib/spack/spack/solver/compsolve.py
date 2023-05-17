@@ -58,7 +58,7 @@ def parse(costs, max_depth):
   
     
 
-def compare_and_print(spec, fresh, depth):
+def compare_and_print(spec, fresh, depth, spectree):
   #setup solver
   dag = c.Compare(spec)
   dag.setup_at_depth(depth, not fresh) #setup depth 1 and depth d results, do reweighting
@@ -72,6 +72,11 @@ def compare_and_print(spec, fresh, depth):
   
         
   #print results
+
+  if spectree:
+    at_depth_model.print_full_spec()
+
+    
   print("***************** Model evaluated at depth *******************")
   parse(at_depth_weights, depth)
   
@@ -81,14 +86,6 @@ def compare_and_print(spec, fresh, depth):
   else:
     parse(reweights,depth)    
 
-def depth_tree(spec, fresh, depth):
-    dag = c.Compare(spec)
-    solution = dag.initial_solve(depth, 1, not fresh)[0]
-    
-    print("********************* Depth evaluated spec tree **********************")
-    for r in soluiton.roots:
-      rnode = solution.setup_tree(r)
-      rnode.print_tree()
     
 def main():
     #setup arguments
@@ -96,7 +93,7 @@ def main():
 
     parser.add_argument('-D', "--max-depth", type=int, help="maximum depth for optimization", default=10)
     parser.add_argument('-f', '--fresh', action='store_true', help="fresh solve")
-    parser.add_argument('-t', '--tree', action='store_true', help="print deep solve tree")
+    parser.add_argument('-s', '--spectree', action='store_true', help="print spec tree for deep solve")
 
     parser.add_argument('spec', type=str, nargs='+', help="spec to solve")
     
@@ -104,13 +101,10 @@ def main():
 
     spec = args.spec
     fresh = args.fresh
-    tree = args.tree
     d = args.max_depth
-
-    if tree:
-      depth_tree(spec, fresh, d)
-    else:
-      compare_and_print(spec, fresh, d)
+    spectree = args.spectree
+    
+    compare_and_print(spec, fresh, d, spectree)
     
 if __name__ == "__main__":
     main()

@@ -30,25 +30,6 @@ reweight_predicates = ["literal_not_solved",
                        ]
 
 
-class SpecNode(object):
-    """Node object for spec tree, useful basically only for debugging (the print_tree output should match the spec from spack solve."""
-    def __init__(self, name, parent=None):
-        self.name = name
-        self.children = []
-
-        if parent==None:
-            self.depth = 0
-        else:
-            self.depth = parent.depth + 1
-            parent.add_child(self)
-
-    def add_child(self, child):
-        self.children.append(child)
-
-    def print_tree(self, max_depth=10, level=0):
-        print("\t" * level, self.name)
-        for child in self.children:
-            child.print_tree(max_depth, level + 1)
         
             
 class TempResult(object):
@@ -64,22 +45,7 @@ class TempResult(object):
         
         self.roots = [] #list of root spec names as strings
         self.node_depths = {} #dict of all nodes and static depths
-
-    def setup_tree(self, root):
-        """Setup spec tree of SpecNode objects. Useful for debugging only."""
-        r = SpecNode(root)
-        
-        parents = [r]
-        traversed = [root]
-        while parents != []:
-            p = parents.pop(0)
-            
-            for afun in self.depends_on:        
-                if afun.args[0] == p.name and afun.args[1] not in traversed:
-                    child = SpecNode(afun.args[1], p)
-                    traversed.append(child.name)
-                    parents.append(child)
-        return r
+        self.io_specs = None
         
     def setup_depths(self, root):
         """Complete breadth first traversal of the tree given by the set of depends_on predicates belonging to self."""
@@ -108,12 +74,13 @@ class TempResult(object):
 
         return rules
     
-    def setup(self,specs, cost, symbols, depth, ranking):
+    def setup(self, setup, specs, cost, symbols, depth, ranking, inputspec):
         """Setup the TempResult object after its corresponding initial solve is done. Basically just storing all the information that might be necessary later on for a reweight or a comparison."""
         self.weights = cost
         self.depth = depth
 
         self.attr_rules = asp.extract_functions(symbols, "attr")
+
 
         for a in self.attr_rules:
             if a.args[0] == "root":
@@ -132,8 +99,24 @@ class TempResult(object):
         #setup spec tree for printing and for depth regeneration
         for root in self.roots:
             self.setup_depths(str(root))
+            
+        #setup full spec storage
+        builder = asp.SpecBuilder(specs, hash_lookup=setup.reusable_and_possible)
+        answer = builder.build_specs(self.attr_rules)
 
-                               
+        full_specs = spack.cmd.parse_specs(inputspec)
+        for spec in full_specs:
+            if spec.virtual:
+                providers = [spec.name for spec in answer.values() if spec.package.provides(name)]
+                name = providers[0]
+
+            concretized = answer[spec.name]
+            spec._dup(concretized)
+
+
+        spec_pairs = list(zip(specs, full_specs))
+        self.io_specs = spec_pairs
+
     def add_to_control(self, control, new_depth):
         """Add all necessary reweighting rules to control object."""
         for p in self.reweight_rules:
@@ -142,8 +125,36 @@ class TempResult(object):
         for d in self.new_depth_rules(new_depth):
             control.add("depth", [], d)
 
+    def print_full_spec(self):
+        specs= self.io_specs
 
+        name_fmt = "{name}"
+        fmt = "{@version}{%compiler}{compiler_flags}{variants}{arch=architecture}"
         
+        tree_kwargs = {
+            "cover": "nodes", #args.cover,
+            "format": name_fmt + fmt,
+            "hashlen": 7, #if args.very_long else 7,
+            "show_types": False, #args.types,
+            "status_fn": False, #install_status_fn if args.install_status else None,
+        }
+
+        for (input, output) in specs:
+            # Only show the headers for input specs that are not concrete to avoid
+            # repeated output. This happens because parse_specs outputs concrete
+            # specs for `/hash` inputs.
+            if not input.concrete:
+                tree_kwargs["hashes"] = False  # Always False for input spec
+                print("Input spec")
+                print("--------------------------------")
+                print(input.tree(**tree_kwargs))
+                print("Concretized")
+                print("--------------------------------")
+
+            #tree_kwargs["hashes"] = args.long or args.very_long
+            print(output.tree(**tree_kwargs))
+
+                
 class Compare(object):
   
     def __init__(self, specs):
@@ -154,14 +165,24 @@ class Compare(object):
         self.at_depth_results = {}        # dictionary of best TempResult for at every depth in self.depths
         self.reweights = {}               # dictionary of depth, list of weights for each initial result
 
+        self.input_spec_str = specs
 
+        
     def initial_solve(self, depth, count, reuse=True):
         """Run solve setup for the given specs to check for errors. Then solve fully with modified display and max_depth to generate TempResult objects."""
         specs = self.specs
-        
+
+
         #setup_only to check for errors
         solver = asp.Solver(reuse=reuse)
-        solver.solve(specs, setup_only=True)
+
+        #copied from solver.solve()
+        reusable_specs = solver._check_input_and_extract_concrete_specs(specs) 
+        reusable_specs.extend(solver._reusable_specs())
+        setupobj = asp.SpackSolverSetup() 
+        output = asp.OutputConfiguration(timers=False, stats=False, out=None, setup_only=True)
+
+        solver.driver.solve(setupobj, specs, reuse=reusable_specs, output=output, depth=depth)
         
         #solve with specific max_depth and detailed display
         driver = solver.driver
@@ -191,19 +212,18 @@ class Compare(object):
         results = []
         
         if solve_res.satisfiable:
-            
             for idx, (min_cost, curr_model) in enumerate(sorted(models)):
                 #only retrieve up to count solutions
                 if idx >= count: break
 
                 #create TempResult object 
                 res = TempResult()
-                res.setup(specs, min_cost, curr_model, depth, idx)
-                
+                res.setup(setupobj, specs, min_cost, curr_model, depth, idx, self.input_spec_str)
+
                 results.append(res)        
                 
         assert len(results) > 0, "No solutions generated for initial solve."
-
+        
         return results
 
     def reweight_solve(self, result, new_depth, filename=None):
