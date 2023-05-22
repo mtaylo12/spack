@@ -27,7 +27,7 @@
 
 % depths
 #show depth/2.
-
+#show attr/2.
 %#show parent_depth/2.
 
 % debug

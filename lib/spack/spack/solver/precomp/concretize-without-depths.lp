@@ -1314,7 +1314,6 @@ opt_criterion(5, "leveled", "non-preferred targets").
 depth(Package, N) :- N = #min{Depth: possible_depth(Package, Depth); max_depth}, attr("node", Package), possible_depth(Package, _).
 virtual_depth(Package, N) :- N = #min{Depth: virtual_possible_depth(Package, Depth); max_depth}, virtual_possible_depth(Package, _).
 
-#defined interface_possible_depth/2.
 #defined possible_depth/2.
 #defined virtual_possible_depth/2.
 

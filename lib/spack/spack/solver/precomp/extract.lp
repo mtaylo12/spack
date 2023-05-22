@@ -1,4 +1,6 @@
 #defined imposed_constraint/5.
+#defined virtual/1.
+#defined possible_provider/2.
 
 depends_on(Parent, Child) :- imposed_constraint(_, "depends_on", Parent, Child, _), not virtual(Child).
 
