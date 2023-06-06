@@ -56,8 +56,33 @@ def parse(costs, max_depth):
   table["Criterion"] = criterion
   print(tabulate(table, headers="keys"))
   
-    
+def compare_with_metric(spec, fresh, depth):
+  print("Comparing", spec, "at depth", depth)
+  dag = c.Compare(spec)
+  dag.setup_at_depth(depth, not fresh)
 
+  at_depth_model = dag.at_depth_results[depth]
+  at_depth_weights = at_depth_model.weights
+  at_depth_attrs = at_depth_model.attr_rules
+  
+  bestidx = dag.rank_at_depth(depth)[0]
+  best_initial_model = dag.initial_results[bestidx]
+  best_initial_attrs = best_initial_model.attr_rules
+  
+  reweights = dag.reweights[depth][bestidx]
+
+  if reweights == at_depth_weights:
+    print("deep model and standard model", bestidx, "have identical weights")
+    sorted_at_depth = sorted(at_depth_attrs)
+    sorted_initial = sorted(best_initial_attrs)
+
+    if sorted_at_depth == sorted_initial:
+      print("attrs are identical")
+    
+  else:
+    print("deep and standard models differ")
+
+    
 def compare_and_print(spec, fresh, depth, spectree):
   #setup solver
   dag = c.Compare(spec)
@@ -66,7 +91,7 @@ def compare_and_print(spec, fresh, depth, spectree):
   at_depth_model = dag.at_depth_results[depth]
   at_depth_weights = at_depth_model.weights
   
-  #extract best reweight result                                                                                                                                                                                                                            
+  #extract best reweight result                                                                                                                                                                                                                           
   bestidx = dag.rank_at_depth(depth)[0]
   reweights = dag.reweights[depth][bestidx]
   
