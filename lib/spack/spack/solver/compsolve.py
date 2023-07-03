@@ -8,6 +8,7 @@ def parse(costs, max_depth):
   """Parse under the assumption that costs are ordered as follows: errors, number of specs not concretized, all build costs, number of specs to build vs reuse, all reuse costs."""
 
   error_costs = costs[:4]              #4 determined slots at priorities 10,000,000 through 10,000,003
+  
   num_not_concretized = costs[4]       #at priority 1,000,000
   build_costs = costs[5:13*(max_depth+1)+5]    #at priority in range 100,005 to (100,065 + (max_depth)*100)
   num_to_build = costs[13*(max_depth+1)+5] #at priority 100,000
@@ -56,12 +57,15 @@ def parse(costs, max_depth):
   table["Criterion"] = criterion
   print(tabulate(table, headers="keys"))
   
-def compare_with_metric(spec, fresh, depth):
-  print("Comparing", spec, "at depth", depth)
+def print_comparison(spec, fresh):
   dag = c.Compare(spec)
-  dag.setup_at_depth(depth, not fresh)
 
-  at_depth_model = dag.at_depth_results[depth]
+  dag.initial_results = (dag.initial_solve(1,10,not fresh))
+  depth = dag.initial_results[0].true_height
+
+  at_depth_model = dag.at_depth_results[depth] = dag.initial_solve(depth,1,not fresh)[0]
+  dag.reweights[depth] = [dag.reweight_solve(r,depth) for r in dag.initial_results]
+  
   at_depth_weights = at_depth_model.weights
   at_depth_attrs = at_depth_model.attr_rules
   
@@ -71,17 +75,31 @@ def compare_with_metric(spec, fresh, depth):
   
   reweights = dag.reweights[depth][bestidx]
 
+  error = False
+  if sum(at_depth_weights[:4]) > 0 or sum(best_initial_model.weights[:4]) > 0:
+    error=True
+
+  wmatch = False
+  amatch = False
+  deeponly = None
+  standonly = None
   if reweights == at_depth_weights:
-    print("deep model and standard model", bestidx, "have identical weights")
+    
+    wmatch = True
     sorted_at_depth = sorted(at_depth_attrs)
     sorted_initial = sorted(best_initial_attrs)
 
     if sorted_at_depth == sorted_initial:
-      print("attrs are identical")
-    
-  else:
-    print("deep and standard models differ")
+      print("- attrs: identical")
+      amatch = True
+    else:
+      s1 = set(sorted_at_depth)
+      s2 = set(sorted_initial)
+      deeponly = [x for x in s1 if x not in s2]
+      standonly = [x for x in s2 if x not in s1]
 
+  
+  return (depth, bestidx, error, wmatch, amatch, deeponly, standonly)
     
 def compare_and_print(spec, fresh, depth, spectree):
   #setup solver
@@ -100,7 +118,6 @@ def compare_and_print(spec, fresh, depth, spectree):
 
   if spectree:
     at_depth_model.print_full_spec()
-
     
   print("***************** Model evaluated at depth *******************")
   parse(at_depth_weights, depth)

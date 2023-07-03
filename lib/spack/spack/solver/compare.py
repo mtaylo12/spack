@@ -38,6 +38,8 @@ class TempResult(object):
     def __init__(self):
         self.weights = []
         self.depth = None
+
+        self.true_height = None
                 
         self.attr_rules = []
         self.reweight_rules = []
@@ -52,7 +54,9 @@ class TempResult(object):
 
         parents = [root]
         self.node_depths[root] = 0
- 
+
+        true_height = 0
+        
         while parents:
             p = parents.pop(0)
             #iterate through all depends_on clauses
@@ -60,8 +64,12 @@ class TempResult(object):
                 if afun.args[0] == p and afun.args[1] not in self.node_depths:
                     child = afun.args[1]
                     parents.append(child)
-                    self.node_depths[child] = self.node_depths[p] + 1
+                    new_depth = self.node_depths[p] + 1
+                    self.node_depths[child] = new_depth
+                    if new_depth > true_height:
+                        true_height = new_depth
 
+        self.true_height = true_height
 
     def new_depth_rules(self, newd):
         """Build new depth/2 rules from the dictuionary node_depths generated during setup. Uses newd as the new max depth. Must be run only after setup."""
