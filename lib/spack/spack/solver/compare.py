@@ -39,6 +39,9 @@ class TempResult(object):
         self.weights = []
         self.depth = None
 
+        self.error = False
+
+        
         self.true_height = None
                 
         self.attr_rules = []
@@ -84,7 +87,12 @@ class TempResult(object):
     
     def setup(self, setup, specs, cost, symbols, depth, ranking, inputspec):
         """Setup the TempResult object after its corresponding initial solve is done. Basically just storing all the information that might be necessary later on for a reweight or a comparison."""
+        if sum(cost[:4]) > 0:
+            self.error = True
+
         self.weights = cost
+
+
         self.depth = depth
 
         self.attr_rules = asp.extract_functions(symbols, "attr")
