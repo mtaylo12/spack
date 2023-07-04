@@ -250,6 +250,7 @@ class Compare(object):
         driver = solver.driver
         
         driver.control = asp.default_clingo_control()
+        driver.assumptions = []
         
         driver.control.load(os.path.join(self.parent_dir, "minimize.lp"))
         #driver.control.load(os.path.join(self.parent_dir, "display-recreate.lp"))
@@ -266,7 +267,8 @@ class Compare(object):
         def on_model(model):
             #shown variable determines if results from display.lp are included in the model representation
             models.append((model.cost, model.symbols(shown=True, terms=True)))
-            
+
+        
         solve_kwargs = {
             "assumptions": driver.assumptions,
             "on_model": on_model,
