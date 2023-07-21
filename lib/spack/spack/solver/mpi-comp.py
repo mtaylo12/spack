@@ -3,51 +3,82 @@
 from mpi4py import MPI
 
 import time
-import spack.solver.compobj as compobj
+import spack.solver.encode as e
+import random
+import json
+import argparse
 
+#parse arguments
+parse = argparse.ArgumentParser()
+parse.add_argument('inputfile')
+parse.add_argument('outputfile')
+parse.add_argument('-b', '--bufsize', dest='bufsize', type=int, default=100)
 
+args = parse.parse_args()
+inputfn = args.inputfile
+outputfn = args.outputfile
+bufsize = int(args.bufsize)
+
+#setup MPI
 comm = MPI.COMM_WORLD
 size = comm.Get_size()
 rank = comm.Get_rank()
 
-with open("condvar_specs.txt") as f:
+assert size > 1, "Must use at least two threads."
+
+# select test packages
+with open(inputfn) as f:
     lines = f.read().splitlines()
 
-lines = lines[:5]
-
-
-
+# outline work split
 totalwork = len(lines)
-assert totalwork >= size, "More processors than tasks"
+worksize = totalwork // (size - 1)
 
-worksize = totalwork // size
-
-if totalwork % size > 0:
+if totalwork % (size - 1) > 0:
     worksize += 1
 
-starti = rank*worksize
-endi = (rank + 1)*worksize
-
-
-t1 = time.time()
+starti = (rank-1)*worksize
+endi = rank*worksize
 myjobs = lines[starti:endi]
 
-# if rank == 0:
-#     for i in range(1, size):
-#         data = comm.recv(source = i)
-
-#     t2 = time.time()
-#     print("Completed for list of size", totalwork, " in time:", t2-t1)
-# else:
-for job in myjobs:
-    specobj = compobj.CompObj(job)
+if rank == 0:
+    finished_threads = 0
+    res_count = 0
+    results = {}
     
-    print("Beginning job for spec", job, "on processor", rank)
-    specobj.run_comparison(True)
+    while finished_threads < size-1:
+        s = comm.recv()
 
-    if specobj.error == False:
-        print("Completed result for spec", job)
-    else:
-        print("Error solving for spec", job)
+        if s == 0:
+            finished_threads += 1
+            print("Finished thread " + str(finished_threads) +"/" + str(size-1), flush=True)
+            continue
+
+        res_count += 1
+        print("Received result " + str(res_count) + "/" + str(totalwork), flush=True)
+
+        (spec, encoding) = s
+        results[spec] = encoding
         
-#comm.send(data, dest=0)
+        if (res_count%bufsize) == 0:
+            with open(outputfn, "a") as f:
+                f.write(json.dumps(results))
+                f.write("\n")
+                results = {}
+
+    if results != {}:
+        with open(outputfn, "a") as f:
+            f.write(json.dumps(results))
+
+    t2 = time.time()
+    
+else:
+    specobjs = []
+    for job in myjobs:
+        print("Starting job: " + job + " on thread", rank, flush=True)
+        spec_obj = e.EncodedResult(job)
+        spec_encoding = spec_obj.encode()
+        
+        comm.send(spec_encoding,dest=0)
+    comm.send(0, dest=0)
+                

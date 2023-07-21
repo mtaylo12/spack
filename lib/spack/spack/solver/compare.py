@@ -38,15 +38,17 @@ class TempResult(object):
     def __init__(self):
         self.weights = []
         self.depth = None
-
+        self.index = None
         self.error = False
-
         
         self.true_height = None
                 
         self.attr_rules = []
         self.reweight_rules = []
         self.depends_on = []
+
+        self.reweight_depth = None
+        self.reweight_results = None
         
         self.roots = [] #list of root spec names as strings
         self.node_depths = {} #dict of all nodes and static depths
@@ -87,17 +89,17 @@ class TempResult(object):
     
     def setup(self, setup, specs, cost, symbols, depth, ranking, inputspec):
         """Setup the TempResult object after its corresponding initial solve is done. Basically just storing all the information that might be necessary later on for a reweight or a comparison."""
-        if sum(cost[:4]) > 0:
-            self.error = True
+            
 
         self.weights = cost
-
-
         self.depth = depth
-
         self.attr_rules = asp.extract_functions(symbols, "attr")
+        self.index = ranking
 
-
+        if sum(cost[:4]) > 0:
+            self.error = True
+            return
+        
         for a in self.attr_rules:
             if a.args[0] == "root":
                 self.roots.append(a.args[1])
@@ -179,7 +181,7 @@ class Compare(object):
 
         self.initial_results = []         # list of the top TempResult objects at depth 1
         self.at_depth_results = {}        # dictionary of best TempResult for at every depth in self.depths
-        self.reweights = {}               # dictionary of depth, list of weights for each initial result
+        
 
         self.input_spec_str = specs
 
@@ -222,14 +224,15 @@ class Compare(object):
             "on_model": on_model,
             "on_core": cores.append
         }
-    
+
         solve_res = driver.control.solve(**solve_kwargs)
-        
+    
         results = []
         
         if solve_res.satisfiable:
             for idx, (min_cost, curr_model) in enumerate(sorted(models)):
                 #only retrieve up to count solutions
+        
                 if idx >= count: break
 
                 #create TempResult object 
@@ -244,8 +247,13 @@ class Compare(object):
 
     def reweight_solve(self, result, new_depth, filename=None):
         """Generate weights for the given result evaluated at the given depth."""
-        assert result.depth <= new_depth, "Reweight failed - cannot reweight to smaller depth."
+        assert result.depth <= new_depth, "Reweight failed - cannot reweight depth" + str(result.depth) + "to depth" + str(new_depth)
 
+        if result.error:
+            return
+        
+        result.reweight_depth = new_depth
+        
         solver = asp.Solver()
         driver = solver.driver
         
@@ -288,26 +296,20 @@ class Compare(object):
 
         assert l1==l2, "Reweight failed - wrong length weight vector."
 
-        return weights
+        result.reweight_results = weights
 
-            
-    def setup_at_depth(self, d, reuse=True):
-        """Solve at the given depth and at depth 1. Compute reweights to compare."""
-        
-        self.initial_results = (self.initial_solve(1, 10, reuse))
-        self.at_depth_results[d] = self.initial_solve(d,1,reuse)[0]
-        self.reweights[d] = [self.reweight_solve(r,d) for r in self.initial_results]
-
-        
+                    
     def rank_at_depth(self, depth):
         """Rank all initial results at the given depth according to lexicographical order."""
-        assert depth in self.reweights, "invalid depth request"
+        assert self.initial_results != [], "Must solve for initial results before ranking."
 
         weights = []
         
-        for idx, r in enumerate(self.initial_results):
-            new_weights = self.reweights[depth][idx]
-            weights.append((idx, new_weights))
+        for r in self.initial_results:
+            if not r.error:
+                assert r.reweight_depth == depth,"Must run reweight to requested depth before ranking."
+                new_weights = r.reweight_results
+                weights.append((r, new_weights))
 
         sorted_weights = sorted(weights, key=lambda l : tuple(l[1]))
 
@@ -315,3 +317,27 @@ class Compare(object):
         return ordering
 
         
+def build_comparison(spec, fresh, depth):
+  #setup solver
+    dag = Compare(spec)
+    dag.initial_results = dag.initial_solve(1,10,not fresh)
+
+    if dag.initial_results[0].error:
+        return None
+
+    if depth == None:
+        depth = max(1,dag.initial_results[0].true_height) #don't want to allow reweights to depth=0
+
+    at_depth_model = dag.at_depth_results[depth] = dag.initial_solve(depth,1,not fresh)[0]
+    for r in dag.initial_results:
+        if not r.error:
+            dag.reweight_solve(r,depth)
+
+
+    at_depth_weights = at_depth_model.weights
+
+    
+    #extract best reweight result
+    bestmodel = dag.rank_at_depth(depth)[0]
+
+    return (bestmodel, at_depth_model)
