@@ -88,6 +88,9 @@ def main():
       print("***************** Spec tree of deep solve *******************") 
       at_depth.print_full_spec()
     
+      print("***************** Spec tree of standard solve *******************") 
+      best.print_full_spec()
+    
     print("***************** Model evaluated at depth *******************")
     parse(at_depth_weights, at_depth.depth)
   
@@ -96,8 +99,6 @@ def main():
       print("Identical to weights computed at depth.")
     else:
       parse(reweights,reweight_depth)    
-
-
     
 if __name__ == "__main__":
     main()
